@@ -28,7 +28,7 @@ print(f"First spikes: {loss.first_spikes}")
 print(f"Got loss: {loss.get_loss(pattern.label)}, classification result: {loss.get_classification_result(pattern.label)}")
 
 ```
-This prints:
+The gradients are now available in `hidden_layer.gradient`, `output_layer.gradient`. The output is:
 ```
 First spikes: [<Spike w/ source_neuron=0, time=0.0107255, source_layer=140226107226048, error=-125.937>, <Spike w/ source_neuron=1, time=0.0102994, source_layer=140226107226048, error=345.556>, <Spike w/ source_neuron=2, time=0.00962609, source_layer=140226107226048, error=-218.219>]
 Got loss: 1.1747556275433069, classification result: 0
