@@ -8,7 +8,7 @@ pip install -U .
 ```
 
 ## Quickstart
-Creates a two-layer network, a simple spike pattern and does a forward/backward pass.
+Creates a two-layer network, a simple spike pattern and does a forward/backward pass to compute the gradient with respect to a cross-entropy loss function over the "Time-To-First-Spike" (TTFS).
 ```python
 from eventprop.layer import SpikePattern
 from eventprop.lif_layer_cpp import Spike
