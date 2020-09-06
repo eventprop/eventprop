@@ -119,14 +119,14 @@ class TwoLayerTTFS(ABC):
                     logging.debug(f"Decaying learning rate by {self.lr_decay_gamma}.")
                     self.optimizer.parameters = self.optimizer.parameters._replace(lr=self.optimizer.parameters.lr*self.lr_decay_gamma)
             if valid_every is not None:
-                if epoch % valid_every == 0 and epoch > 0:
+                if epoch % valid_every == 0:
                     logging.debug("Getting valid accuracy.")
                     valid_loss, valid_error = self.valid()
                     self.valid_accuracies.append(valid_error)
                     self.valid_losses.append(valid_loss)
                     logging.info(f"Validation accuracy in epoch {epoch}: {valid_error}.")
             if test_every is not None:
-                if epoch % test_every == 0 and epoch > 0:
+                if epoch % test_every == 0:
                     logging.debug("Getting test accuracy.")
                     test_loss, test_error = self.test()
                     self.test_accuracies.append(test_error)
