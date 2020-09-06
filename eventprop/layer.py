@@ -11,7 +11,6 @@ class SpikePattern:
     label          : int
 
 class Layer(ABC):
-    __slots__ = ["input_spikes", "ancestor_layer", "_ran_forward", "_ran_backward"]
     def __init__(self):
         self.input_spikes = None
         self.ancestor_layer = None
