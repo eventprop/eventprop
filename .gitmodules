@@ -1,0 +1,9 @@
+[submodule "src/pybind11"]
+	path = src/pybind11
+	url = https://github.com/pybind/pybind11.git
+[submodule "src/eigen"]
+	path = src/eigen
+	url = https://gitlab.com/libeigen/eigen.git
+[submodule "eventprop/yin_yang_data_set"]
+	path = eventprop/yin_yang_data_set
+	url = https://github.com/lkriener/yin_yang_data_set.git
