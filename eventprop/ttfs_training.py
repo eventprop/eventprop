@@ -26,14 +26,12 @@ class TwoLayerTTFS(ABC):
     weight_increase_bump : float = 5e-3,
     lr_decay_gamma : float = 0.95,
     lr_decay_step  : int = 2000,
-    gradient_clip : float = None,
     optimizer : Optimizer = Adam):
         self.weight_increase_threshold_hidden = weight_increase_threshold_hidden
         self.weight_increase_threshold_output = weight_increase_threshold_output
         self.weight_increase_bump = weight_increase_bump
         self.lr_decay_gamma = lr_decay_gamma
         self.lr_decay_step = lr_decay_step
-        self.gradient_clip = gradient_clip
         self.hidden_parameters = hidden_parameters
         self.output_parameters = output_parameters
         self.loss_parameters = loss_parameters
