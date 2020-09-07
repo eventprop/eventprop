@@ -4,7 +4,7 @@ import logging
 from typing import NamedTuple, List, Iterable
 
 from .layer import Layer
-from eventprop.lif_layer_cpp import get_spikes, Spike, LIF
+from eventprop.lif_layer_cpp import Spike, LIF
 
 class LIFLayerParameters(NamedTuple):
     n           : int   = 10
