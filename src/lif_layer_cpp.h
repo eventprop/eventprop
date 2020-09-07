@@ -69,6 +69,3 @@ class LIF {
         Eigen::MatrixXd sum0;
         Eigen::MatrixXd sum1;
 };
-
-
-std::vector<SpikeVector> get_spikes(unsigned long int const, double const, double const, double const, Eigen::Ref<Eigen::MatrixXd const> const, SpikeVector );

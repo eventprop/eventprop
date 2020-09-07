@@ -255,13 +255,6 @@ LIF::LIF(unsigned long int const layer_id, double const v_th, double const tau_m
     zero_grad();
 }
 
-std::vector<SpikeVector> get_spikes(unsigned long int const layer_id, double const v_th, double const tau_mem, double const tau_syn, Eigen::Ref<Eigen::MatrixXd const> const w, SpikeVector input_spikes) {
-    LIF lif(layer_id, v_th, tau_mem, tau_syn, w);
-    lif.set_input_spikes(input_spikes);
-    lif.get_spikes();
-    return lif.post_spikes;
-}
-
 PYBIND11_MODULE(lif_layer_cpp, m) {
     py::class_<Spike>(m, "Spike")
         .def(py::init<int, double, unsigned long int, double>(),
@@ -286,8 +279,6 @@ PYBIND11_MODULE(lif_layer_cpp, m) {
                     return spike;
                 }
         ));
-
-    m.def("get_spikes", &get_spikes);
 
     py::class_<LIF>(m, "LIF")
         .def(py::init<unsigned long int const, double const, double const, double const, Eigen::MatrixXd const>(), py::arg("layer_id"), py::arg("v_th"), py::arg("tau_mem"), py::arg("tau_syn"), py::arg("w"))
