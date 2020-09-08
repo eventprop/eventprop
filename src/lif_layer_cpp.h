@@ -34,6 +34,8 @@ class LIF {
         void get_errors();
         double const v(double const, int const) const;
         double const i(double const, int const) const;
+        double const lambda_v(double const, int const) const;
+        double const lambda_i(double const, int const) const;
         std::vector<double> get_voltage_trace(int const, double const, double const);
 
         double const v_th;

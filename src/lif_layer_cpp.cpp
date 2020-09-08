@@ -181,6 +181,60 @@ double const LIF::i(double const t, int const target_nrn_idx) const {
     return i;
 }
 
+double const LIF::lambda_v(double const t, int const target_nrn_idx)  const {
+    assert(target_nrn_idx < n);
+    SpikeVector input(input_spikes.begin(), input_spikes.end());
+    SpikeVector output(post_spikes.at(target_nrn_idx).begin(), post_spikes.at(target_nrn_idx).end());
+    SpikeRefVector sorted_spikes;
+    // sort and merge
+    std::merge(input.begin(), input.end(), output.begin(), output.end(), std::back_inserter(sorted_spikes), [](SpikeRef const& a, SpikeRef const& b) { return a.get().time < b.get().time; });
+    double const largest_time = sorted_spikes.back().get().time;
+    double lambda_v = 0;
+    double previous_t = -inf;
+    double const t_bwd_target = largest_time - t;
+    auto is_pre_spike = [&](SpikeRef spike) { return spike.get().source_layer != layer_id; };
+    auto is_my_post_spike = [&](SpikeRef spike) { return (spike.get().source_layer == layer_id and spike.get().source_neuron == target_nrn_idx); };
+    if (t >= largest_time) {
+        return 0;
+    }
+    for (auto spike = sorted_spikes.rbegin(); spike != sorted_spikes.rend(); ++spike) {
+        auto const t_spike = spike->get().time;
+        double t_bwd = largest_time - t_spike;
+        if (t_spike < t) {
+            return lambda_v * std::exp(-(t_bwd_target-previous_t)/tau_mem);
+        }
+        if (is_pre_spike(*spike)) {
+            lambda_v = std::exp(-(t_bwd - previous_t)/tau_mem)*lambda_v;
+        }
+        else if (is_my_post_spike(*spike)) {
+            double const current = i(t_spike, target_nrn_idx);
+            lambda_v = std::exp(-(t_bwd-previous_t)/tau_mem)*lambda_v;
+            lambda_v = current/(current-v_th)*lambda_v + 1/(current-v_th)*spike->get().error;
+        }
+        previous_t = t_bwd;
+    }
+    return lambda_v * std::exp(-(t_bwd_target-previous_t)/tau_mem);
+}
+
+double const LIF::lambda_i(double const t, int const target_nrn_idx) const {
+    assert(target_nrn_idx < n);
+    double lambda_i = 0;
+    SpikeVector input(input_spikes.begin(), input_spikes.end());
+    SpikeVector output(post_spikes.at(target_nrn_idx).begin(), post_spikes.at(target_nrn_idx).end());
+    SpikeRefVector sorted_spikes;
+    // sort and merge
+    std::merge(input.begin(), input.end(), output.begin(), output.end(), std::back_inserter(sorted_spikes), [](SpikeRef const& a, SpikeRef const& b) { return a.get().time < b.get().time; });
+    double const largest_time = sorted_spikes.back().get().time;
+    double const t_bwd_target = largest_time - t;
+    if (t >= largest_time) {
+        return 0;
+    }
+    for (auto const& lambda_i_pair : lambda_i_spikes.at(target_nrn_idx)) {
+        lambda_i += lambda_i_pair.first * k_bwd(t_bwd_target - lambda_i_pair.second);
+    }
+    return lambda_i;
+}
+
 std::vector<double> LIF::get_voltage_trace(int const target_nrn_idx, double const t_max, double const dt=1e-4) {
     get_spikes_for_neuron(target_nrn_idx);
     size_t size = std::floor(t_max/dt);
@@ -296,5 +350,7 @@ PYBIND11_MODULE(lif_layer_cpp, m) {
         .def("get_errors", &LIF::get_errors)
         .def("v", &LIF::v)
         .def("i", &LIF::i)
+        .def("lambda_v", &LIF::lambda_v)
+        .def("lambda_i", &LIF::lambda_i)
         .def("get_voltage_trace", &LIF::get_voltage_trace, py::arg("target_nrn_idx"), py::arg("t_max"), py::arg("dt") = 1e-4);
 };
