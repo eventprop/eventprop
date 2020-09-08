@@ -68,4 +68,5 @@ class LIF {
         Eigen::VectorXd exp_input_syn;
         Eigen::MatrixXd sum0;
         Eigen::MatrixXd sum1;
+        std::vector<std::vector<std::pair<double, double>>> lambda_i_spikes;
 };

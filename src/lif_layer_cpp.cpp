@@ -98,7 +98,6 @@ void LIF::get_errors_for_neuron(int const target_nrn_idx) {
     double const largest_time = sorted_spikes.back().get().time;
     double lambda_v = 0;
     double previous_t = -inf;
-    std::vector<std::pair<double, double>> lambda_i_spikes;
     auto is_pre_spike = [&](SpikeRef spike) { return spike.get().source_layer != layer_id; };
     auto is_my_post_spike = [&](SpikeRef spike) { return (spike.get().source_layer == layer_id and spike.get().source_neuron == target_nrn_idx); };
     for (auto spike = sorted_spikes.rbegin(); spike != sorted_spikes.rend(); ++spike) {
@@ -107,7 +106,7 @@ void LIF::get_errors_for_neuron(int const target_nrn_idx) {
         if (is_pre_spike(*spike)) {
             lambda_v = std::exp(-(t_bwd - previous_t)/tau_mem)*lambda_v;
             double lambda_i = 0;
-            for (auto const& lambda_i_pair : lambda_i_spikes) {
+            for (auto const& lambda_i_pair : lambda_i_spikes.at(target_nrn_idx)) {
                 lambda_i += lambda_i_pair.first * k_bwd(t_bwd - lambda_i_pair.second);
             }
             gradient(spike->get().source_neuron, target_nrn_idx) += -tau_syn*lambda_i;
@@ -119,7 +118,7 @@ void LIF::get_errors_for_neuron(int const target_nrn_idx) {
             double const current = i(t_spike, target_nrn_idx);
             lambda_v = std::exp(-(t_bwd-previous_t)/tau_mem)*lambda_v;
             double const lambda_i_jump =  1/(current - v_th)*(v_th*lambda_v + spike->get().error);
-            lambda_i_spikes.push_back(std::make_pair(lambda_i_jump, t_bwd));
+            lambda_i_spikes.at(target_nrn_idx).push_back(std::make_pair(lambda_i_jump, t_bwd));
             lambda_v = current/(current-v_th)*lambda_v + 1/(current-v_th)*spike->get().error;
         }
         previous_t = t_bwd;
@@ -208,6 +207,7 @@ double const inline LIF::k_bwd(double const t) const {
 
 void LIF::set_post_spikes(SpikeVector output) {
     std::for_each(post_spikes.begin(), post_spikes.end(), [](SpikeVector& spikes) { spikes.clear(); });
+    std::for_each(lambda_i_spikes.begin(), lambda_i_spikes.end(), [](std::vector<std::pair<double, double>>& spikes) { spikes.clear(); });
     for (auto const spike : output) {
         post_spikes.at(spike.source_neuron).push_back(spike);
     }
@@ -215,7 +215,7 @@ void LIF::set_post_spikes(SpikeVector output) {
 
 void LIF::set_input_spikes(SpikeVector input) {
     input_spikes = input;
-    n_spikes = input.size();
+    n_spikes = static_cast<int>(input.size());
     input_times = extract_times(input_spikes);
     input_sources = extract_sources(input_spikes);
     exp_input_mem = Eigen::exp(input_times.array()/tau_mem);
@@ -245,12 +245,13 @@ LIF::LIF(unsigned long int const layer_id, double const v_th, double const tau_m
     w(w),
     post_spikes(w.cols()),
     layer_id(layer_id),
-    n_in(w.rows()),
-    n(w.cols()),
+    n_in(static_cast<int>(w.rows())),
+    n(static_cast<int>(w.cols())),
     tmax_prefactor(1/(1/tau_mem - 1/tau_syn)),
     tmax_summand(std::log(tau_syn/tau_mem)),
     k_prefactor(tau_syn/(tau_mem-tau_syn)),
-    k_bwd_prefactor(tau_mem/tau_syn)
+    k_bwd_prefactor(tau_mem/tau_syn),
+    lambda_i_spikes(w.cols())
 {
     zero_grad();
 }
