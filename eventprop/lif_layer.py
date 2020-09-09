@@ -225,15 +225,14 @@ class LIFLayer(Layer):
             raise RuntimeError("Set weights first!")
         if not self._ran_forward:
             raise RuntimeError("Run forward first!")
+        ts = np.arange(0, t_max, step=dt)
         if code == "python":
-            ts = np.arange(0, t_max, step=dt)
             v = np.zeros_like(ts)
             for t_idx, t in enumerate(ts):
                 v[t_idx] = self._v(t, target_nrn_idx)
-            return v
+            return ts, v
         elif code == "cpp":
-            return self._lif_cpp.get_voltage_trace(target_nrn_idx, t_max, dt=dt)
-
+            return ts, self._lif_cpp.get_voltage_trace(target_nrn_idx, t_max, dt=dt)
 
     def _i(self, t : float, target_nrn_idx : int) -> float:
         i = 0
