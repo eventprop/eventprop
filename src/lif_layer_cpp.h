@@ -36,8 +36,8 @@ class LIF {
         double const i(double const, int const) const;
         double const lambda_v(double const, int const) const;
         double const lambda_i(double const, int const) const;
-        std::vector<double> get_voltage_trace(int const, double const, double const);
-        std::vector<double> get_lambda_i_trace(int const, double const, double const);
+        std::vector<double> get_voltage_trace(int const, double const, double const) const;
+        std::vector<double> get_lambda_i_trace(int const, double const, double const) const;
 
         double const v_th;
         double const tau_mem;
@@ -72,4 +72,6 @@ class LIF {
         Eigen::MatrixXd sum0;
         Eigen::MatrixXd sum1;
         std::vector<std::vector<std::pair<double, double>>> lambda_i_spikes;
+        std::vector<bool> ran_forward;
+        std::vector<bool> ran_backward;
 };

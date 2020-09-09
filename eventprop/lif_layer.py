@@ -234,12 +234,22 @@ class LIFLayer(Layer):
         elif code == "cpp":
             return ts, self._lif_cpp.get_voltage_trace(target_nrn_idx, t_max, dt=dt)
 
-    def get_lambda_i_trace_for_neuron(self, target_nrn_idx : int, t_max : float = 1., dt : float = 1e-4, code : str = "cpp"):
+    def zero_grad(self):
+        self.gradient = np.zeros_like(self.gradient)
+        self._lif_cpp.zero_grad()
+
+    def get_lambda_i_trace_for_neuron(self, target_nrn_idx : int, t_max : float = 1., dt : float = 1e-4, code : str = "cpp") -> np.array:
         ts = np.arange(0, t_max, step=dt)
         if code == "python":
             raise NotImplementedError()
         elif code == "cpp":
             return ts, self._lif_cpp.get_lambda_i_trace(target_nrn_idx, t_max, dt=dt)
+
+    def get_lambda_i_for_neuron(self, target_nrn_idx : int, t : float, code : str = "cpp") -> float:
+        if code == "python":
+            raise NotImplementedError()
+        elif code == "cpp":
+            return self._lif_cpp.lambda_i(t, target_nrn_idx)
 
     def _i(self, t : float, target_nrn_idx : int) -> float:
         i = 0

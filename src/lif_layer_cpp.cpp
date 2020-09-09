@@ -81,6 +81,7 @@ void LIF::get_spikes_for_neuron(int const target_nrn_idx) {
             }
         }
     }
+    ran_forward.at(target_nrn_idx) = true;
 }
 
 void LIF::get_errors() {
@@ -124,6 +125,7 @@ void LIF::get_errors_for_neuron(int const target_nrn_idx) {
         }
         previous_t = t_bwd;
     }
+    ran_backward.at(target_nrn_idx) = true;
 }
 
 double const LIF::bracket_spike(double const a, double const b, int const target_nrn_idx) const {
@@ -219,7 +221,6 @@ double const LIF::lambda_v(double const t, int const target_nrn_idx)  const {
 
 double const LIF::lambda_i(double const t, int const target_nrn_idx) const {
     assert(target_nrn_idx < n);
-    double lambda_i = 0;
     SpikeVector input(input_spikes.begin(), input_spikes.end());
     SpikeVector output(post_spikes.at(target_nrn_idx).begin(), post_spikes.at(target_nrn_idx).end());
     SpikeRefVector sorted_spikes;
@@ -240,8 +241,10 @@ double const LIF::lambda_i(double const t, int const target_nrn_idx) const {
     return lambda_i;
 }
 
-std::vector<double> LIF::get_lambda_i_trace(int const target_nrn_idx, double const t_max, double const dt=1e-4) {
-    get_errors_for_neuron(target_nrn_idx);
+std::vector<double> LIF::get_lambda_i_trace(int const target_nrn_idx, double const t_max, double const dt=1e-4) const {
+    if (not ran_backward.at(target_nrn_idx)) {
+        throw std::runtime_error("Run backward first!");
+    }
     size_t size = std::floor(t_max/dt);
     std::vector<double> trace(size);
     double t = 0;
@@ -252,8 +255,10 @@ std::vector<double> LIF::get_lambda_i_trace(int const target_nrn_idx, double con
     return trace;
 }
 
-std::vector<double> LIF::get_voltage_trace(int const target_nrn_idx, double const t_max, double const dt=1e-4) {
-    get_spikes_for_neuron(target_nrn_idx);
+std::vector<double> LIF::get_voltage_trace(int const target_nrn_idx, double const t_max, double const dt=1e-4) const {
+    if (not ran_forward.at(target_nrn_idx)) {
+        throw std::runtime_error("Run forward first!");
+    }
     size_t size = std::floor(t_max/dt);
     std::vector<double> trace(size);
     double t = 0;
@@ -322,7 +327,9 @@ LIF::LIF(unsigned long int const layer_id, double const v_th, double const tau_m
     tmax_summand(std::log(tau_syn/tau_mem)),
     k_prefactor(tau_syn/(tau_mem-tau_syn)),
     k_bwd_prefactor(tau_mem/tau_syn),
-    lambda_i_spikes(w.cols())
+    lambda_i_spikes(w.cols()),
+    ran_forward(w.cols(), false),
+    ran_backward(w.cols(), false)
 {
     zero_grad();
 }
@@ -358,6 +365,8 @@ PYBIND11_MODULE(lif_layer_cpp, m) {
         .def("set_post_spikes", &LIF::set_post_spikes)
         .def("set_weights", &LIF::set_weights)
         .def("zero_grad", &LIF::zero_grad)
+        .def_readonly("tau_syn", &LIF::tau_syn)
+        .def_readonly("tau_mem", &LIF::tau_mem)
         .def_readonly("gradient", &LIF::gradient)
         .def_readonly("post_spikes", &LIF::post_spikes)
         .def_readonly("input_spikes", &LIF::input_spikes)
