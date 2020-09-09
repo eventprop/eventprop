@@ -37,6 +37,7 @@ class LIF {
         double const lambda_v(double const, int const) const;
         double const lambda_i(double const, int const) const;
         std::vector<double> get_voltage_trace(int const, double const, double const);
+        std::vector<double> get_lambda_i_trace(int const, double const, double const);
 
         double const v_th;
         double const tau_mem;

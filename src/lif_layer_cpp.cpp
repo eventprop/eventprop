@@ -100,6 +100,7 @@ void LIF::get_errors_for_neuron(int const target_nrn_idx) {
     double previous_t = -inf;
     auto is_pre_spike = [&](SpikeRef spike) { return spike.get().source_layer != layer_id; };
     auto is_my_post_spike = [&](SpikeRef spike) { return (spike.get().source_layer == layer_id and spike.get().source_neuron == target_nrn_idx); };
+    lambda_i_spikes.at(target_nrn_idx).clear();
     for (auto spike = sorted_spikes.rbegin(); spike != sorted_spikes.rend(); ++spike) {
         auto const t_spike = spike->get().time;
         double t_bwd = largest_time - t_spike;
@@ -235,6 +236,18 @@ double const LIF::lambda_i(double const t, int const target_nrn_idx) const {
     return lambda_i;
 }
 
+std::vector<double> LIF::get_lambda_i_trace(int const target_nrn_idx, double const t_max, double const dt=1e-4) {
+    get_errors_for_neuron(target_nrn_idx);
+    size_t size = std::floor(t_max/dt);
+    std::vector<double> trace(size);
+    double t = 0;
+    for (auto& value : trace) {
+        value = lambda_i(t, target_nrn_idx);
+        t += dt;
+    }
+    return trace;
+}
+
 std::vector<double> LIF::get_voltage_trace(int const target_nrn_idx, double const t_max, double const dt=1e-4) {
     get_spikes_for_neuron(target_nrn_idx);
     size_t size = std::floor(t_max/dt);
@@ -352,5 +365,6 @@ PYBIND11_MODULE(lif_layer_cpp, m) {
         .def("i", &LIF::i)
         .def("lambda_v", &LIF::lambda_v)
         .def("lambda_i", &LIF::lambda_i)
-        .def("get_voltage_trace", &LIF::get_voltage_trace, py::arg("target_nrn_idx"), py::arg("t_max"), py::arg("dt") = 1e-4);
+        .def("get_voltage_trace", &LIF::get_voltage_trace, py::arg("target_nrn_idx"), py::arg("t_max"), py::arg("dt") = 1e-4)
+        .def("get_lambda_i_trace", &LIF::get_lambda_i_trace, py::arg("target_nrn_idx"), py::arg("t_max"), py::arg("dt") = 1e-4);
 };
