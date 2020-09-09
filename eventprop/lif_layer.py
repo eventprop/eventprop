@@ -232,7 +232,9 @@ class LIFLayer(Layer):
                 v[t_idx] = self._v(t, target_nrn_idx)
             return ts, v
         elif code == "cpp":
-            return ts, self._lif_cpp.get_voltage_trace(target_nrn_idx, t_max, dt=dt)
+            trace = self._lif_cpp.get_voltage_trace(target_nrn_idx, t_max, dt=dt)
+            ts = np.linspace(0, t_max, len(trace))
+            return ts, trace
 
     def zero_grad(self):
         self.gradient = np.zeros_like(self.gradient)
@@ -243,7 +245,9 @@ class LIFLayer(Layer):
         if code == "python":
             raise NotImplementedError()
         elif code == "cpp":
-            return ts, self._lif_cpp.get_lambda_i_trace(target_nrn_idx, t_max, dt=dt)
+            trace = self._lif_cpp.get_lambda_i_trace(target_nrn_idx, t_max, dt=dt)
+            ts = np.linspace(0, t_max, len(trace))
+            return ts, trace
 
     def get_lambda_i_for_neuron(self, target_nrn_idx : int, t : float, code : str = "cpp") -> float:
         if code == "python":
