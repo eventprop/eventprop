@@ -227,10 +227,14 @@ double const LIF::lambda_i(double const t, int const target_nrn_idx) const {
     std::merge(input.begin(), input.end(), output.begin(), output.end(), std::back_inserter(sorted_spikes), [](SpikeRef const& a, SpikeRef const& b) { return a.get().time < b.get().time; });
     double const largest_time = sorted_spikes.back().get().time;
     double const t_bwd_target = largest_time - t;
+    double lambda_i = 0;
     if (t >= largest_time) {
         return 0;
     }
     for (auto const& lambda_i_pair : lambda_i_spikes.at(target_nrn_idx)) {
+        if (lambda_i_pair.second > t_bwd_target) {
+            return lambda_i;
+        }
         lambda_i += lambda_i_pair.first * k_bwd(t_bwd_target - lambda_i_pair.second);
     }
     return lambda_i;
