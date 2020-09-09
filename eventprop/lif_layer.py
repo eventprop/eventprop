@@ -220,18 +220,20 @@ class LIFLayer(Layer):
                     finished = True
         return self.post_spikes
 
-    def get_voltage_trace_for_neuron(self, input_spikes : List[Spike], target_nrn_idx : int, t_max : float = None, dt : float = 1e-4) -> np.array:
+    def get_voltage_trace_for_neuron(self, target_nrn_idx : int, t_max : float = 1., dt : float = 1e-4, code : str = "cpp") -> np.array:
         if self.w_in is None:
             raise RuntimeError("Set weights first!")
         if not self._ran_forward:
             raise RuntimeError("Run forward first!")
-        if t_max is None:
-            t_max = np.max([spike.time for spike in input_spikes])
-        ts = np.arange(0, t_max, step=dt)
-        v = np.zeros_like(ts)
-        for t_idx, t in enumerate(ts):
-            v[t_idx] = self._v(t, target_nrn_idx)
-        return v
+        if code == "python":
+            ts = np.arange(0, t_max, step=dt)
+            v = np.zeros_like(ts)
+            for t_idx, t in enumerate(ts):
+                v[t_idx] = self._v(t, target_nrn_idx)
+            return v
+        elif code == "cpp":
+            return self._lif_cpp.get_voltage_trace(target_nrn_idx, t_max, dt=dt)
+
 
     def _i(self, t : float, target_nrn_idx : int) -> float:
         i = 0
