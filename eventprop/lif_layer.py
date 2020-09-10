@@ -6,6 +6,7 @@ from typing import NamedTuple, List, Iterable
 from .layer import Layer
 from eventprop.lif_layer_cpp import Spike, LIF
 
+# fmt: off
 class LIFLayerParameters(NamedTuple):
     n           : int   = 10
     n_in        : int   = 10
@@ -15,6 +16,7 @@ class LIFLayerParameters(NamedTuple):
     v_leak      : float = 0
     w_mean      : float = None
     w_std       : float = None
+# fmt: on
 
 class LIFLayer(Layer):
     def __init__(self, parameters : LIFLayerParameters, w_in : np.array = None):
@@ -245,7 +247,6 @@ class LIFLayer(Layer):
         self._lif_cpp.zero_grad()
 
     def get_lambda_i_trace_for_neuron(self, target_nrn_idx : int, t_max : float = 1., dt : float = 1e-4, code : str = "cpp") -> np.array:
-        ts = np.arange(0, t_max, step=dt)
         if code == "python":
             raise NotImplementedError()
         elif code == "cpp":

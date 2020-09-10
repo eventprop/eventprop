@@ -23,6 +23,7 @@ class Optimizer(ABC):
     def step(self):
         pass
 
+# fmt: off
 class GradientDescentParameters(NamedTuple):
     lr             : float = 1e-4    # for adam/gd
     batch_size     : int   = 100
@@ -31,6 +32,7 @@ class GradientDescentParameters(NamedTuple):
     beta1          : float = 0.9     # for adam
     beta2          : float = 0.999   # for adam
     epsilon        : float = 1e-8    # for adam
+# fmt: on
 
 class GradientDescent(Optimizer):
     def __init__(self, loss : Layer, parameters : GradientDescentParameters = GradientDescentParameters()):

@@ -5,10 +5,12 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from eventprop.lif_layer_cpp import Spike
 
+# fmt: off
 @dataclass
 class SpikePattern:
     spikes         : List[Spike]
     label          : int
+# fmt: on
 
 class Layer(ABC):
     def __init__(self):

@@ -3,11 +3,13 @@ import numpy as np
 
 from .layer import Layer, Spike
 
+# fmt: off
 class TTFSCrossEntropyLossParameters(NamedTuple):
     n           : int   = 10
     alpha       : float = 5e-3
     tau0        : float = 2e-3 # s
     tau1        : float = 10e-3 # s
+# fmt: on
 
 class TTFSCrossEntropyLoss(Layer):
     def __init__(self, parameters : TTFSCrossEntropyLossParameters = TTFSCrossEntropyLossParameters()):
