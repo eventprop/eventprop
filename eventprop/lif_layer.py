@@ -93,6 +93,7 @@ class LIFLayer(Layer):
 
     def forward(self, input_spikes : List[Spike], code : str = "cpp") -> List[Spike]:
         super().forward(input_spikes)
+        assert(all([x.source_neuron < self.parameters.n_in for x in input_spikes]))
         self.input_spikes.sort(key=lambda x: x.time)
         if code == "python":
             self.get_spikes_python(input_spikes)
