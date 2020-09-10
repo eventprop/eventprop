@@ -129,6 +129,9 @@ class LIFLayer(Layer):
         if output_spikes is not None:
             assert(len(output_spikes) == len(self.post_spikes))
             self.post_spikes = output_spikes
+        if len(self.post_spikes) == 0:
+            self._ran_backward = True
+            return # no backprop if no spikes
         if code == "cpp":
             self._lif_cpp.set_post_spikes(self.post_spikes)
             self._lif_cpp.get_errors()
