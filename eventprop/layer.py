@@ -12,6 +12,7 @@ class SpikePattern:
     label          : int
 # fmt: on
 
+
 class Layer(ABC):
     def __init__(self):
         self.input_spikes = None
@@ -19,7 +20,9 @@ class Layer(ABC):
         self._ran_forward = False
         self._ran_backward = False
 
-    def __call__(self, arg : Union[List[Spike], Tuple[List[Spike], Layer]]) -> Tuple[List[Spike], Layer]:
+    def __call__(
+        self, arg: Union[List[Spike], Tuple[List[Spike], Layer]]
+    ) -> Tuple[List[Spike], Layer]:
         if isinstance(arg, tuple):
             if isinstance(arg[0], list) and isinstance(arg[1], Layer):
                 self.ancestor_layer = arg[1]
@@ -30,9 +33,8 @@ class Layer(ABC):
             input_spikes = arg
         return self.forward(input_spikes), self
 
-
     @abstractmethod
-    def forward(self, input_spikes : List[Spike]):
+    def forward(self, input_spikes: List[Spike]):
         self.input_spikes = input_spikes
 
     @abstractmethod
