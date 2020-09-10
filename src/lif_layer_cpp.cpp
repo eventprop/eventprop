@@ -101,15 +101,15 @@ void LIF::get_errors_for_neuron(int const target_nrn_idx) {
     double previous_t = -inf;
     auto is_pre_spike = [&](SpikeRef spike) { return spike.get().source_layer != layer_id; };
     auto is_my_post_spike = [&](SpikeRef spike) { return (spike.get().source_layer == layer_id and spike.get().source_neuron == target_nrn_idx); };
-    lambda_i_spikes.at(target_nrn_idx).clear();
+    lambda_i_jumps.at(target_nrn_idx).clear();
     for (auto spike = sorted_spikes.rbegin(); spike != sorted_spikes.rend(); ++spike) {
         auto const t_spike = spike->get().time;
         double t_bwd = largest_time - t_spike;
         if (is_pre_spike(*spike)) {
             lambda_v = std::exp(-(t_bwd - previous_t)/tau_mem)*lambda_v;
             double lambda_i = 0;
-            for (auto const& lambda_i_pair : lambda_i_spikes.at(target_nrn_idx)) {
-                lambda_i += lambda_i_pair.first * k_bwd(t_bwd - lambda_i_pair.second);
+            for (auto const& jump : lambda_i_jumps.at(target_nrn_idx)) {
+                lambda_i += jump.value * k_bwd(t_bwd - jump.time);
             }
             gradient(spike->get().source_neuron, target_nrn_idx) += -tau_syn*lambda_i;
             if (spike->get().source_layer != 0) {
@@ -119,8 +119,8 @@ void LIF::get_errors_for_neuron(int const target_nrn_idx) {
         else if (is_my_post_spike(*spike)) {
             double const current = i(t_spike, target_nrn_idx);
             lambda_v = std::exp(-(t_bwd-previous_t)/tau_mem)*lambda_v;
-            double const lambda_i_jump =  1/(current - v_th)*(v_th*lambda_v + spike->get().error);
-            lambda_i_spikes.at(target_nrn_idx).push_back(std::make_pair(lambda_i_jump, t_bwd));
+            double const jump_value =  1/(current - v_th)*(v_th*lambda_v + spike->get().error);
+            lambda_i_jumps.at(target_nrn_idx).push_back(LambdaJump{jump_value, t_bwd});
             lambda_v = current/(current-v_th)*lambda_v + 1/(current-v_th)*spike->get().error;
         }
         previous_t = t_bwd;
@@ -232,11 +232,11 @@ double const LIF::lambda_i(double const t, int const target_nrn_idx) const {
     if (t >= largest_time) {
         return 0;
     }
-    for (auto const& lambda_i_pair : lambda_i_spikes.at(target_nrn_idx)) {
-        if (lambda_i_pair.second > t_bwd_target) {
+    for (auto const& jump : lambda_i_jumps.at(target_nrn_idx)) {
+        if (jump.time > t_bwd_target) {
             return lambda_i;
         }
-        lambda_i += lambda_i_pair.first * k_bwd(t_bwd_target - lambda_i_pair.second);
+        lambda_i += jump.value * k_bwd(t_bwd_target - jump.time);
     }
     return lambda_i;
 }
@@ -283,7 +283,7 @@ double const inline LIF::k_bwd(double const t) const {
 
 void LIF::set_post_spikes(SpikeVector output) {
     std::for_each(post_spikes.begin(), post_spikes.end(), [](SpikeVector& spikes) { spikes.clear(); });
-    std::for_each(lambda_i_spikes.begin(), lambda_i_spikes.end(), [](std::vector<std::pair<double, double>>& spikes) { spikes.clear(); });
+    std::for_each(lambda_i_jumps.begin(), lambda_i_jumps.end(), [](LambdaJumpVector& jumps) { jumps.clear(); });
     for (auto const spike : output) {
         post_spikes.at(spike.source_neuron).push_back(spike);
     }
@@ -327,7 +327,7 @@ LIF::LIF(unsigned long int const layer_id, double const v_th, double const tau_m
     tmax_summand(std::log(tau_syn/tau_mem)),
     k_prefactor(tau_syn/(tau_mem-tau_syn)),
     k_bwd_prefactor(tau_mem/tau_syn),
-    lambda_i_spikes(w.cols()),
+    lambda_i_jumps(w.cols()),
     ran_forward(w.cols(), false),
     ran_backward(w.cols(), false)
 {
