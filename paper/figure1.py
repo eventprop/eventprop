@@ -119,6 +119,9 @@ def plot(ts, pre_spike_times, voltage_trace, lambda_trace, lambdas, tau_syn, gra
     plt.tight_layout()
     plt.savefig(save_to)
 
+print(f"Relative deviation of adjoint gradient from numerical: {abs(output_gradient[0,0]-numerical_output_grad)/numerical_output_grad} (output weight)")
+print(f"Relative deviation of adjoint gradient from numerical: {abs(hidden_gradient[0,0]-numerical_hidden_grad)/numerical_hidden_grad} (hidden weight)")
+
 plot(ts, [x.time for x in hidden_spikes], output_voltage_trace, output_lambda_trace, output_lambdas, output_layer.parameters.tau_syn, output_gradient, numerical_output_grad, "output_trace.svg")
 plot(ts, [x.time for x in input_spikes if x.source_neuron==0], hidden_voltage_trace, hidden_lambda_trace, hidden_lambdas, hidden_layer.parameters.tau_syn, hidden_gradient, numerical_hidden_grad, "hidden_trace.svg")
 
