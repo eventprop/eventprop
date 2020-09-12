@@ -6,7 +6,7 @@ from .layer import Layer, Spike
 # fmt: off
 class TTFSCrossEntropyLossParameters(NamedTuple):
     n           : int   = 10
-    alpha       : float = 5e-3
+    alpha       : float = 1e-2
     tau0        : float = 2e-3  # s
     tau1        : float = 10e-3 # s
 # fmt: on

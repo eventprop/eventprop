@@ -4,7 +4,6 @@ import numpy as np
 from time import sleep
 import logging
 from typing import List, Tuple
-from random import shuffle
 import os
 import gzip
 import pickle
@@ -45,7 +44,7 @@ class TwoLayerTTFS(ABC):
         self.loss = TTFSCrossEntropyLoss(self.loss_parameters)
         self.optimizer = optimizer(self.loss, self.gd_parameters)
         self.load_data()
-        shuffle(self.train_spikes)
+        np.random.shuffle(self.train_spikes)
         self._minibatch_idx = 0
 
     @abstractmethod

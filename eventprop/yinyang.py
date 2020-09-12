@@ -3,7 +3,6 @@ from time import sleep
 import os
 import signal
 import logging
-from dask.distributed import Client, LocalCluster
 
 from eventprop.layer import SpikePattern
 from eventprop.lif_layer_cpp import Spike
@@ -20,13 +19,13 @@ class YinYangTTFS(TwoLayerTTFS):
     def __init__(
         self,
         gd_parameters: GradientDescentParameters = GradientDescentParameters(
-            batch_size=200, epochs=10000, lr=0.01, gradient_clip=None
+            batch_size=200, epochs=10000, lr=1e-3, gradient_clip=None
         ),
         hidden_parameters: LIFLayerParameters = LIFLayerParameters(
-            n_in=5, n=200, w_mean=2.5, w_std=1.5, tau_mem=20e-3, tau_syn=5e-3
+            n_in=5, n=200, w_mean=2, w_std=1, tau_mem=20e-3, tau_syn=5e-3
         ),
         output_parameters: LIFLayerParameters = LIFLayerParameters(
-            n_in=200, n=3, w_mean=1.0, w_std=1.0, tau_mem=20e-3, tau_syn=5e-3
+            n_in=200, n=3, w_mean=0.3, w_std=0.3, tau_mem=20e-3, tau_syn=5e-3
         ),
         loss_parameters: TTFSCrossEntropyLossParameters = TTFSCrossEntropyLossParameters(
             n=3
@@ -77,18 +76,5 @@ class YinYangTTFS(TwoLayerTTFS):
 
 def do_single_run(seed, save_to):
     np.random.seed(seed)
-    yin = YinYangTTFS(weight_increase_threshold_output=0.03, weight_increase_bump=1e-3)
+    yin = YinYangTTFS(weight_increase_threshold_output=0.15, weight_increase_bump=1e-4, lr_decay_gamma=1)
     yin.train(test_every=None, valid_every=100, save_to=save_to, save_every=100)
-
-
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
-    do_single_run(0, None)
-    cluster = LocalCluster(n_workers=10, threads_per_worker=1)
-    client = Client(cluster)
-    seeds = 10
-    results = list()
-    for seed in range(seeds):
-        results.append(client.submit(do_single_run, seed, f"yinyang_{seed}.pkl"))
-    while not all([x.done() for x in results]):
-        sleep(0.1)
