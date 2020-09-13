@@ -1,5 +1,5 @@
 import numpy as np
-from numpy.testing import assert_almost_equal, assert_allclose
+from numpy.testing import assert_almost_equal
 from itertools import product
 import unittest
 
@@ -74,8 +74,8 @@ class LossLIFLIFChainTest(unittest.TestCase):
         loss_layer = TTFSCrossEntropyLoss(loss_pars)
         loss_layer(lower_layer(upper_layer(input_spikes)))
         loss_layer.backward(0)
-        assert_allclose(grad_numerical_lower, lower_layer.gradient, rtol=1e-6)
-        assert_allclose(grad_numerical_upper, upper_layer.gradient, rtol=1e-6)
+        assert_almost_equal(grad_numerical_lower, lower_layer.gradient)
+        assert_almost_equal(grad_numerical_upper, upper_layer.gradient)
 
 class LIFLIFChainTest(unittest.TestCase):
     def test_gradient_vs_numerical_random(self):
@@ -185,7 +185,7 @@ class LossLIFChainTest(unittest.TestCase):
         loss_layer = TTFSCrossEntropyLoss(loss_params)
         loss_layer(layer(input_spikes))
         loss_layer.backward(0)
-        assert_allclose(grad_numerical, layer.gradient, rtol=1e-5)
+        assert_almost_equal(grad_numerical, layer.gradient)
 
     def test_gradient_vs_numerical_single_post_spike(self):
         lif_params = LIFLayerParameters(n_in=1, n=11)
@@ -217,7 +217,7 @@ class LossLIFChainTest(unittest.TestCase):
         loss_layer(lif_layer(input_spikes))
         loss_layer.backward(0)
 
-        assert_allclose(numerical_grad, lif_layer.gradient[0,0], rtol=1e-5)
+        assert_almost_equal(numerical_grad, lif_layer.gradient[0,0])
 
     def test_loss_lif_chain(self):
         lif_params = LIFLayerParameters(n_in=1, n=11)
