@@ -110,7 +110,7 @@ class TwoLayerTTFS(ABC):
         self.test_losses, self.test_accuracies = list(), list
         self.valid_accuracies, self.valid_losses = list(), list()
         self.weights = list()
-        for epoch in range(self.gd_parameters.epochs):
+        for epoch in range(self.gd_parameters.iterations):
             minibatch = self._get_minibatch()
             batch_losses, batch_classif_results = list(), list()
             frac_quiet_output, frac_quiet_hidden = list(), list()

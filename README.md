@@ -41,7 +41,7 @@ Training can be started using the `train` function.
 An example from `yinyang.py`:
 ```python
  class YinYangTTFS(TwoLayerTTFS):
-    def __init__(self, gd_parameters : GradientDescentParameters = GradientDescentParameters(batch_size=200, epochs=10000, lr=0.01, gradient_clip=None),
+    def __init__(self, gd_parameters : GradientDescentParameters = GradientDescentParameters(batch_size=200, iterations=10000, lr=0.01, gradient_clip=None),
     hidden_parameters : LIFLayerParameters = LIFLayerParameters(n_in=5, n=200, w_mean=2.5, w_std=1.5, tau_mem=20e-3, tau_syn=5e-3),
     output_parameters : LIFLayerParameters = LIFLayerParameters(n_in=200, n=3, w_mean=1., w_std=1., tau_mem=20e-3, tau_syn=5e-3),
     loss_parameters : TTFSCrossEntropyLossParameters = TTFSCrossEntropyLossParameters(n=3),
