@@ -4,7 +4,7 @@ A simple event-based simulator that implements the EventProp algorithm for backp
 ## Installation
 Requires Python >= 3.8 and Boost.
 ```python
-pip install -U .
+pip install -U git+git://github.com/neurognosis/eventprop
 ```
 
 ## Quickstart
