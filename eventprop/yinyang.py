@@ -19,13 +19,13 @@ class YinYangTTFS(TwoLayerTTFS):
     def __init__(
         self,
         gd_parameters: GradientDescentParameters = GradientDescentParameters(
-            batch_size=200, epochs=10000, lr=1e-3, gradient_clip=None
+            batch_size=200, epochs=30000, lr=1e-3, gradient_clip=None
         ),
         hidden_parameters: LIFLayerParameters = LIFLayerParameters(
             n_in=5, n=200, w_mean=2, w_std=1, tau_mem=20e-3, tau_syn=5e-3
         ),
         output_parameters: LIFLayerParameters = LIFLayerParameters(
-            n_in=200, n=3, w_mean=0.3, w_std=0.3, tau_mem=20e-3, tau_syn=5e-3
+            n_in=200, n=3, w_mean=0.4, w_std=0.4, tau_mem=20e-3, tau_syn=5e-3
         ),
         loss_parameters: TTFSCrossEntropyLossParameters = TTFSCrossEntropyLossParameters(
             n=3
