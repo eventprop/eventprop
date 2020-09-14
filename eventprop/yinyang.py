@@ -78,7 +78,3 @@ def do_single_run(seed, save_to):
     np.random.seed(seed)
     yin = YinYangTTFS(weight_increase_threshold_output=0.15, weight_increase_bump=1e-4, lr_decay_gamma=1)
     yin.train(test_every=None, valid_every=100, save_to=save_to, save_every=100)
-
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
-    do_single_run(7, None)
