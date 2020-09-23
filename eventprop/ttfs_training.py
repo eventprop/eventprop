@@ -58,8 +58,10 @@ class TwoLayerTTFS(ABC):
                 self.accuracies,
                 self.test_accuracies,
                 self.test_losses,
+                self.test_first_spikes,
                 self.valid_accuracies,
                 self.valid_losses,
+                self.valid_first_spikes,
                 self.weights,
             ),
             open(fname, "wb"),
@@ -79,25 +81,22 @@ class TwoLayerTTFS(ABC):
             self._minibatch_idx %= len(self.train_spikes)
             return samples
 
-    def valid(self):
-        accuracies, losses = list(), list()
-        for pattern in self.valid_spikes:
+    def _get_results_for_set(self, patterns):
+        accuracies, losses, first_spikes = list(), list(), list()
+        for pattern in patterns:
             self.loss(self.output_layer(self.hidden_layer(pattern.spikes)))
             accuracies.append(self.loss.get_classification_result(pattern.label))
             losses.append(self.loss.get_loss(pattern.label))
-        logging.debug(f"Got validation accuracy: {np.mean(accuracies)}.")
-        logging.debug(f"Got validation loss: {np.mean(losses)}.")
-        return np.nanmean(losses), np.mean(accuracies)
+            first_spikes.append(deepcopy(self.loss.first_spikes))
+        logging.debug(f"Got accuracy: {np.mean(accuracies)}.")
+        logging.debug(f"Got loss: {np.mean(losses)}.")
+        return np.nanmean(losses), np.mean(accuracies), first_spikes
+
+    def valid(self):
+        return self._get_results_for_set(self.valid_spikes)
 
     def test(self):
-        accuracies, losses = list(), list()
-        for pattern in self.test_spikes:
-            self.loss(self.output_layer(self.hidden_layer(pattern.spikes)))
-            accuracies.append(self.loss.get_classification_result(pattern.label))
-            losses.append(self.loss.get_loss(pattern.label))
-        logging.debug(f"Got test accuracy: {np.mean(accuracies)}.")
-        logging.debug(f"Got test loss: {np.mean(losses)}.")
-        return np.nanmean(losses), np.mean(accuracies)
+        return self._get_results_for_set(self.test_spikes)
 
     def train(
         self,
@@ -110,6 +109,7 @@ class TwoLayerTTFS(ABC):
         self.test_losses, self.test_accuracies = list(), list
         self.valid_accuracies, self.valid_losses = list(), list()
         self.weights = list()
+        self.test_first_spikes, self.valid_first_spikes = list(), list()
         for epoch in range(self.gd_parameters.iterations):
             minibatch = self._get_minibatch()
             batch_losses, batch_classif_results = list(), list()
@@ -162,18 +162,20 @@ class TwoLayerTTFS(ABC):
             if valid_every is not None:
                 if epoch % valid_every == 0:
                     logging.debug("Getting valid accuracy.")
-                    valid_loss, valid_error = self.valid()
+                    valid_loss, valid_error, valid_first_spikes = self.valid()
                     self.valid_accuracies.append(valid_error)
                     self.valid_losses.append(valid_loss)
+                    self.valid_first_spikes.append(valid_first_spikes)
                     logging.info(
                         f"Validation accuracy in epoch {epoch}: {valid_error}."
                     )
             if test_every is not None:
                 if epoch % test_every == 0:
                     logging.debug("Getting test accuracy.")
-                    test_loss, test_error = self.test()
+                    test_loss, test_error, test_first_spikes = self.test()
                     self.test_accuracies.append(test_error)
                     self.test_losses.append(test_loss)
+                    self.test_first_spikes.append(test_first_spikes)
                     logging.info(f"Test accuracy in epoch {epoch}: {test_error}.")
             if save_to is not None:
                 if epoch % save_every == 0:
