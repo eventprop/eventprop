@@ -18,12 +18,5 @@ setuptools.setup(
     python_requires=">=3.8",
     install_requires=["numpy", "scipy", "dask"],
     ext_modules=[cpp_ext],
-    data_files=[
-        (yin_yang_dir, "test_labels.npy"),
-        (yin_yang_dir, "train_labels.npy"),
-        (yin_yang_dir, "valid_labels.npy"),
-        (yin_yang_dir, "test_samples.npy"),
-        (yin_yang_dir, "train_samples.npy"),
-        (yin_yang_dir, "valid_samples.npy"),
-    ],
+    include_package_data=True,
 )
