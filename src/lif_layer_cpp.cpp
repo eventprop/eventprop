@@ -34,7 +34,7 @@ void LIF::get_spikes() {
   }
 }
 
-void LIF::get_spikes_for_neuron(int const target_nrn_idx) {
+void LIF::get_spikes_for_neuron(int target_nrn_idx) {
   if (not input_initialized) {
     throw std::runtime_error("Set input spikes first!");
   }
@@ -94,7 +94,7 @@ void LIF::get_errors() {
   }
 }
 
-void LIF::get_errors_for_neuron(int const target_nrn_idx) {
+void LIF::get_errors_for_neuron(int target_nrn_idx) {
   SpikeRefVector input(input_spikes.begin(), input_spikes.end());
   SpikeRefVector output(post_spikes.at(target_nrn_idx).begin(),
                         post_spikes.at(target_nrn_idx).end());
@@ -147,8 +147,8 @@ void LIF::get_errors_for_neuron(int const target_nrn_idx) {
   ran_backward.at(target_nrn_idx) = true;
 }
 
-double const LIF::bracket_spike(double const a, double const b,
-                                int const target_nrn_idx) const {
+double LIF::bracket_spike(double a, double b,
+                                int target_nrn_idx) const {
   boost::math::tools::eps_tolerance<double> t(
       std::numeric_limits<double>::digits - 1);
   boost::uintmax_t max_iter = boost::math::policies::get_max_root_iterations<
@@ -158,8 +158,8 @@ double const LIF::bracket_spike(double const a, double const b,
   return (result.first + result.second) / 2;
 }
 
-double const LIF::get_tmax(int const input_spike_idx,
-                           int const target_nrn_idx) const {
+double LIF::get_tmax(int input_spike_idx,
+                           int target_nrn_idx) const {
   double t_input;
   if (input_spike_idx == 0) {
     return 0;
@@ -184,7 +184,7 @@ double const LIF::get_tmax(int const input_spike_idx,
   return inf;
 }
 
-double const LIF::v(double const t, int const target_nrn_idx) const {
+double LIF::v(double t, int target_nrn_idx) const {
   assert(target_nrn_idx < n);
   double v = 0;
   for (auto const &spike : input_spikes) {
@@ -200,7 +200,7 @@ double const LIF::v(double const t, int const target_nrn_idx) const {
   return v;
 }
 
-double const LIF::i(double const t, int const target_nrn_idx) const {
+double LIF::i(double t, int target_nrn_idx) const {
   assert(target_nrn_idx < n);
   double i = 0;
   for (auto const &spike : input_spikes) {
@@ -212,7 +212,7 @@ double const LIF::i(double const t, int const target_nrn_idx) const {
   return i;
 }
 
-double const LIF::lambda_v(double const t, int const target_nrn_idx) const {
+double LIF::lambda_v(double t, int target_nrn_idx) const {
   assert(target_nrn_idx < n);
   SpikeVector input(input_spikes.begin(), input_spikes.end());
   SpikeVector output(post_spikes.at(target_nrn_idx).begin(),
@@ -258,7 +258,7 @@ double const LIF::lambda_v(double const t, int const target_nrn_idx) const {
   return lambda_v * std::exp(-(t_bwd_target - previous_t) / tau_mem);
 }
 
-double const LIF::lambda_i(double const t, int const target_nrn_idx) const {
+double LIF::lambda_i(double t, int target_nrn_idx) const {
   assert(target_nrn_idx < n);
   SpikeVector input(input_spikes.begin(), input_spikes.end());
   SpikeVector output(post_spikes.at(target_nrn_idx).begin(),
@@ -285,9 +285,9 @@ double const LIF::lambda_i(double const t, int const target_nrn_idx) const {
   return lambda_i;
 }
 
-std::vector<double> LIF::get_lambda_i_trace(int const target_nrn_idx,
-                                            double const t_max,
-                                            double const dt = 1e-4) const {
+std::vector<double> LIF::get_lambda_i_trace(int target_nrn_idx,
+                                            double t_max,
+                                            double dt = 1e-4) const {
   if (not ran_backward.at(target_nrn_idx)) {
     throw std::runtime_error("Run backward first!");
   }
@@ -301,9 +301,9 @@ std::vector<double> LIF::get_lambda_i_trace(int const target_nrn_idx,
   return trace;
 }
 
-std::vector<double> LIF::get_voltage_trace(int const target_nrn_idx,
-                                           double const t_max,
-                                           double const dt = 1e-4) const {
+std::vector<double> LIF::get_voltage_trace(int target_nrn_idx,
+                                           double t_max,
+                                           double dt = 1e-4) const {
   if (not ran_forward.at(target_nrn_idx)) {
     throw std::runtime_error("Run forward first!");
   }
@@ -317,16 +317,16 @@ std::vector<double> LIF::get_voltage_trace(int const target_nrn_idx,
   return trace;
 }
 
-double const inline LIF::v_delta(double const t,
-                                 int const target_nrn_idx) const {
+double inline LIF::v_delta(double t,
+                                 int target_nrn_idx) const {
   return v(t, target_nrn_idx) - v_th;
 }
 
-double const inline LIF::k(double const t) const {
+double inline LIF::k(double t) const {
   return k_prefactor * (std::exp(-t / tau_mem) - std::exp(-t / tau_syn));
 }
 
-double const inline LIF::k_bwd(double const t) const {
+double inline LIF::k_bwd(double t) const {
   return k_bwd_prefactor * k(t);
 }
 
@@ -363,8 +363,8 @@ void LIF::set_weights(Eigen::MatrixXd const weights) { w = weights; }
 
 void LIF::zero_grad() { gradient = Eigen::MatrixXd::Zero(w.rows(), w.cols()); }
 
-LIF::LIF(unsigned long int const layer_id, double const v_th,
-         double const tau_mem, double const tau_syn, Eigen::MatrixXd const w)
+LIF::LIF(unsigned long int layer_id, double v_th,
+         double tau_mem, double tau_syn, Eigen::MatrixXd const w)
     : v_th(v_th), tau_mem(tau_mem), tau_syn(tau_syn), w(w),
       post_spikes(w.cols()), layer_id(layer_id),
       n_in(static_cast<int>(w.rows())), n(static_cast<int>(w.cols())),
@@ -413,8 +413,8 @@ PYBIND11_MODULE(lif_layer_cpp, m) {
           }));
 
   py::class_<LIF>(m, "LIF")
-      .def(py::init<unsigned long int const, double const, double const,
-                    double const, Eigen::MatrixXd const>(),
+      .def(py::init<unsigned long int, double, double,
+                    double, Eigen::MatrixXd const>(),
            py::arg("layer_id"), py::arg("v_th"), py::arg("tau_mem"),
            py::arg("tau_syn"), py::arg("w"))
       .def("set_input_spikes", &LIF::set_input_spikes)

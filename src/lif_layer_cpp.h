@@ -33,24 +33,24 @@ typedef std::vector<LambdaJump> LambdaJumpVector;
 
 class LIF {
 public:
-  LIF(unsigned long int const, double const, double const, double const,
+  LIF(unsigned long int, double, double, double,
       Eigen::MatrixXd const);
   void set_input_spikes(SpikeVector);
   void set_post_spikes(SpikeVector);
   void set_weights(Eigen::MatrixXd const);
   void zero_grad();
-  void get_spikes_for_neuron(int const);
+  void get_spikes_for_neuron(int);
   void get_spikes();
-  void get_errors_for_neuron(int const);
+  void get_errors_for_neuron(int);
   void get_errors();
-  double const v(double const, int const) const;
-  double const i(double const, int const) const;
-  double const lambda_v(double const, int const) const;
-  double const lambda_i(double const, int const) const;
-  std::vector<double> get_voltage_trace(int const, double const,
-                                        double const) const;
-  std::vector<double> get_lambda_i_trace(int const, double const,
-                                         double const) const;
+  double v(double, int) const;
+  double i(double, int) const;
+  double lambda_v(double, int) const;
+  double lambda_i(double, int) const;
+  std::vector<double> get_voltage_trace(int, double,
+                                        double) const;
+  std::vector<double> get_lambda_i_trace(int, double,
+                                         double) const;
 
   double const v_th;
   double const tau_mem;
@@ -63,11 +63,11 @@ public:
 private:
   Eigen::VectorXd extract_times(SpikeVector const &) const;
   Eigen::VectorXi extract_sources(SpikeVector const &) const;
-  double const get_tmax(int const, int const) const;
-  double const inline v_delta(double const, int const) const;
-  double const inline k(double const) const;
-  double const inline k_bwd(double const) const;
-  double const bracket_spike(double const, double const, int const) const;
+  double get_tmax(int, int) const;
+  double inline v_delta(double, int) const;
+  double inline k(double) const;
+  double inline k_bwd(double) const;
+  double bracket_spike(double, double, int) const;
 
   unsigned long int const layer_id;
   bool input_initialized = false;
