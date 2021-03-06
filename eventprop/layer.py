@@ -10,6 +10,12 @@ from eventprop.lif_layer_cpp import Spike
 class SpikePattern:
     spikes         : List[Spike]
     label          : int
+
+@dataclass
+class VMax:
+    time           : float
+    value          : float
+    error          : float
 # fmt: on
 
 
