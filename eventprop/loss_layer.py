@@ -12,6 +12,8 @@ class TTFSCrossEntropyLossParameters(NamedTuple):
     tau1        : float = 10e-3 # s
 # fmt: on
 
+VMaxCrossEntropyLossParameters = LILayerParameters
+
 
 class TTFSCrossEntropyLoss(Layer):
     def __init__(
