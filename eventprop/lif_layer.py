@@ -76,6 +76,7 @@ class LIFLayer(Layer):
             self._exp_input_syn[idx] = np.e ** (spike.time / self.parameters.tau_syn)
 
     def _compute_sums_for_tmax(self):
+        # pre-compute sums that are used in determining maxima
         self.sum0 = np.zeros((len(self.input_spikes) + 1, self.parameters.n))
         self.sum1 = np.zeros((len(self.input_spikes) + 1, self.parameters.n))
         for idx, spike in enumerate(self.input_spikes):
@@ -89,19 +90,26 @@ class LIFLayer(Layer):
             )
 
     def _tmax(self, input_spike_idx: int, target_nrn_idx: int) -> float:
+        """
+        Find time of maximum before input spike `input_spike_idx` for neuron `target_nrn_idx`.
+        """
         if input_spike_idx == 0:
             return 0
         elif input_spike_idx == len(self.input_spikes):
+            # find final maximum (no input spikes after)
             t_input = np.inf
         else:
             t_input = self.input_spikes[input_spike_idx].time
+        # get pre-computed sums
         sum_0 = self.sum0[input_spike_idx, target_nrn_idx]
         sum_1 = self.sum1[input_spike_idx, target_nrn_idx]
         largest_t_pre = self.input_spikes[input_spike_idx - 1].time
+        # add terms that are due to post spikes
         for post_spike in self._post_spikes_per_neuron[target_nrn_idx]:
             if t_input <= post_spike.time:
                 break
             sum_1 += -1 * np.e ** (post_spike.time / self.parameters.tau_mem)
+        # compute solution of dv/dt=0
         tmax = self._tmax_prefactor * (self._tmax_summand + np.log(sum_1 / sum_0))
         if largest_t_pre <= tmax <= t_input:
             return tmax
@@ -191,8 +199,8 @@ class LIFLayer(Layer):
                 lambda_v = 0
                 previous_t = -np.inf
                 lambda_i_spikes = list()
-                # function to check if post spike caused by current neuron
                 is_pre_spike = lambda x: x.source_layer != id(self)
+                # function to check if post spike caused by current neuron
                 is_my_post_spike = (
                     lambda x: x.source_layer == id(self)
                     and x.source_neuron == target_nrn_idx
