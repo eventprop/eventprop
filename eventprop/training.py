@@ -68,16 +68,16 @@ class AbstractTwoLayer(ABC):
         )
 
     def _get_minibatch(self):
-        if self.gd_parameters.batch_size is None:
+        if self.gd_parameters.minibatch_size is None:
             return self.train_spikes
         else:
             samples = deepcopy(
                 self.train_spikes[
                     self._minibatch_idx : self._minibatch_idx
-                    + self.gd_parameters.batch_size
+                    + self.gd_parameters.minibatch_size
                 ]
             )
-            self._minibatch_idx += self.gd_parameters.batch_size
+            self._minibatch_idx += self.gd_parameters.minibatch_size
             self._minibatch_idx %= len(self.train_spikes)
             return samples
 
