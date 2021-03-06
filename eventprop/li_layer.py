@@ -136,7 +136,7 @@ class LILayer(Layer):
         if code == "cpp":
             raise NotImplementedError()
         else:
-            nrn_events = self.input_spikes
+            nrn_events = self.input_spikes.copy()
             if len(nrn_events) == 0:
                 return
             # iterate pre spikes in reverse order
@@ -192,7 +192,7 @@ class LILayer(Layer):
                         total_vmax.value = vmax
                 vmax = self._v(spike.time, target_nrn_idx)
                 if vmax > total_vmax.value:
-                    total_vmax.time = x
+                    total_vmax.time = spike.time
                     total_vmax.value = vmax
                 if i == len(self.input_spikes):
                     finished = True

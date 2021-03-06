@@ -6,7 +6,7 @@ import unittest
 from eventprop.loss_layer import TTFSCrossEntropyLoss, TTFSCrossEntropyLossParameters
 from eventprop.lif_layer import LIFLayer, LIFLayerParameters
 from eventprop.layer import Spike
-from test_lif_layer import get_normalization_factor, get_poisson_times
+from test.test_lif_layer import get_normalization_factor, get_poisson_times
 
 
 class LossLIFLIFChainTest(unittest.TestCase):

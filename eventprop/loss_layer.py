@@ -2,6 +2,7 @@ from typing import NamedTuple, List
 import numpy as np
 
 from .layer import Layer, Spike
+from .li_layer import LILayer, LILayerParameters
 
 # fmt: off
 class TTFSCrossEntropyLossParameters(NamedTuple):
@@ -39,7 +40,7 @@ class TTFSCrossEntropyLoss(Layer):
         """
         Compute cross-entropy loss over first spike times
         """
-        if self.input_spikes is None:
+        if not self._ran_forward:
             raise RuntimeError("Run forward first!")
         # Find first spike times
         self._find_first_spikes()
@@ -77,8 +78,8 @@ class TTFSCrossEntropyLoss(Layer):
             return 0
 
     def backward(self, correct_label_neuron: int):
-        if self.input_spikes is None:
-            raise RuntimeError("Run forward with output spikes first!")
+        if not self._ran_forward:
+            raise RuntimeError("Run forward first!")
         self._find_first_spikes()
         if self.first_spikes[correct_label_neuron] is None:
             return  # no spike, no error, no backprop
@@ -116,3 +117,40 @@ class TTFSCrossEntropyLoss(Layer):
             self.first_spikes[nrn_idx].error = error
         self._ran_backward = True
         super().backward()
+
+
+class VMaxCrossEntropyLoss(LILayer):
+    def get_loss(self, correct_label_neuron: int):
+        """
+        Compute cross-entropy loss over voltage maxima
+        """
+        if not self._ran_forward:
+            raise RuntimeError("Run forward first!")
+        v_max_label = self.vmax[correct_label_neuron].value
+        loss = -np.log(
+            np.exp(v_max_label) / np.sum([np.exp(vmax.value) for vmax in self.vmax])
+        )
+        return loss
+
+    def get_classification_result(self, correct_label_neuron: int):
+        v_max_label = self.vmax[correct_label_neuron].value
+        if all([v_max_label >= vmax.value for vmax in self.vmax]):
+            return 1
+        else:
+            return 0
+
+    def backward(self, correct_label_neuron: int, code: str = "python"):
+        if not self._ran_forward:
+            raise RuntimeError("Run forward first!")
+
+        exp_sum = np.sum([np.exp(vmax.value) for vmax in self.vmax])
+        label_error = np.exp(self.vmax[correct_label_neuron].value) / exp_sum - 1
+        self.vmax[correct_label_neuron].error = label_error
+
+        for nrn_idx in range(self.parameters.n):
+            if nrn_idx == correct_label_neuron:
+                continue
+            error = np.exp(self.vmax[nrn_idx].value) / exp_sum
+            self.vmax[nrn_idx].error = error
+        self._ran_backward = True
+        super().backward(code=code)

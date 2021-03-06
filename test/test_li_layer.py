@@ -120,6 +120,7 @@ class LILayerTest(unittest.TestCase):
         layer.forward(input_spikes, code=self.code)
         layer.backward(code=self.code)
         assert np.all(layer.gradient == 0)
+        assert np.all([spike.error == 0 for spike in input_spikes])
 
         w_in = np.eye(n_in, n_neurons) * 1.0001 * norm_factor
         input_spikes = [
@@ -132,6 +133,9 @@ class LILayerTest(unittest.TestCase):
         for vmax in layer.vmax:
             vmax.error = 1
         layer.backward(code=self.code)
+        assert_almost_equal(
+            [spike.error for spike in input_spikes], np.zeros(len(input_spikes))
+        )
         for grad in layer.gradient[:, 0]:
             assert_almost_equal(grad, grad_analytical)
 
@@ -144,8 +148,7 @@ class LILayerTest(unittest.TestCase):
         parameters = LILayerParameters(
             n=n_neurons, n_in=n_in, tau_mem=20e-3, tau_syn=5e-3
         )
-        norm_factor = get_normalization_factor(parameters.tau_mem, parameters.tau_syn)
-        w_in = np.random.normal(0.07, 0.01, size=(n_in, n_neurons)) * norm_factor
+        w_in = np.random.normal(1, 1, size=(n_in, n_neurons))
         w_eps = 1e-8
         input_spikes = list()
         for nrn_idx in range(n_in):
@@ -203,6 +206,9 @@ class LILayerTest(unittest.TestCase):
         layer.backward(code=self.code)
         grad_numerical = (v_plus - v_minus) / (2 * w_eps)
         assert_almost_equal(grad_numerical, layer.gradient[0, 0])
+        assert_almost_equal(
+            [spike.error for spike in input_spikes], np.zeros(len(input_spikes))
+        )
 
         # Test with two pre spikes
         w_save = 0.6 * norm_factor
@@ -258,6 +264,9 @@ class LILayerTest(unittest.TestCase):
         layer.backward(code=self.code)
         grad_numerical = (v_plus - v_minus) / (2 * w_eps)
         assert_almost_equal(grad_numerical, layer.gradient[0, 0])
+        assert_almost_equal(
+            [spike.error for spike in input_spikes], np.zeros(len(input_spikes))
+        )
 
         # Test gradient for second post spike
         w_in[0, 0] = w_save + w_eps
@@ -276,6 +285,9 @@ class LILayerTest(unittest.TestCase):
         layer.backward(code=self.code)
         grad_numerical = (v_plus - v_minus) / (2 * w_eps)
         assert_almost_equal(grad_numerical, layer.gradient[0, 0])
+        assert_almost_equal(
+            [spike.error for spike in input_spikes], np.zeros(len(input_spikes))
+        )
 
         # Test gradient for both post spikes
         w_in[0, 0] = w_save + w_eps
@@ -294,6 +306,9 @@ class LILayerTest(unittest.TestCase):
         layer.backward(code=self.code)
         grad_numerical = (v_plus - v_minus) / (2 * w_eps)
         assert_almost_equal(grad_numerical, layer.gradient[0, 0])
+        assert_almost_equal(
+            [spike.error for spike in input_spikes], np.zeros(len(input_spikes))
+        )
 
 
 if __name__ == "__main__":
