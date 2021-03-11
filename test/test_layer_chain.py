@@ -5,8 +5,8 @@ import unittest
 
 from eventprop.loss_layer import TTFSCrossEntropyLoss, TTFSCrossEntropyLossParameters
 from eventprop.lif_layer import LIFLayer, LIFLayerParameters
-from eventprop.layer import Spike
-from test.test_lif_layer import get_normalization_factor, get_poisson_times
+from eventprop.layer import Spikes
+from test_lif_layer import get_normalization_factor, get_poisson_spikes
 
 
 class LossLIFLIFChainTest(unittest.TestCase):
@@ -25,13 +25,10 @@ class LossLIFLIFChainTest(unittest.TestCase):
             n=n_lower, n_in=n_upper, tau_mem=20e-3, tau_syn=5e-3
         )
         norm_factor = get_normalization_factor(upper_pars.tau_mem, upper_pars.tau_syn)
-        w_upper = np.random.normal(0.5, 0.1, size=(n_in, n_upper)) * norm_factor
-        w_lower = np.random.normal(0.5, 0.1, size=(n_upper, n_lower)) * norm_factor
+        w_upper = np.random.normal(0.2, 0.1, size=(n_in, n_upper)) * norm_factor
+        w_lower = np.random.normal(0.2, 0.1, size=(n_upper, n_lower)) * norm_factor
         w_eps = 1e-4
-        input_spikes = list()
-        for nrn_idx in range(n_in):
-            times = get_poisson_times(isi, t_max)
-            input_spikes.extend([Spike(source_neuron=nrn_idx, time=t) for t in times])
+        input_spikes = get_poisson_spikes(isi, t_max, n_in)
         grad_numerical_upper = np.zeros_like(w_upper)
         for idx in product(range(n_in), range(n_upper)):
             w_plus = np.copy(w_upper)
@@ -40,7 +37,7 @@ class LossLIFLIFChainTest(unittest.TestCase):
             lower_layer = LIFLayer(lower_pars, w_lower)
             loss_layer = TTFSCrossEntropyLoss(loss_pars)
             loss_layer(lower_layer(upper_layer(input_spikes)))
-            assert len(lower_layer.post_spikes) > 0
+            assert lower_layer.post_spikes.n_spikes > 0
             loss_plus = loss_layer.get_loss(0)
 
             w_minus = np.copy(w_upper)
@@ -49,7 +46,7 @@ class LossLIFLIFChainTest(unittest.TestCase):
             lower_layer = LIFLayer(lower_pars, w_lower)
             loss_layer = TTFSCrossEntropyLoss(loss_pars)
             loss_layer(lower_layer(upper_layer(input_spikes)))
-            assert len(lower_layer.post_spikes) > 0
+            assert lower_layer.post_spikes.n_spikes > 0
             loss_minus = loss_layer.get_loss(0)
 
             grad_numerical_upper[idx] = (loss_plus - loss_minus) / (2 * w_eps)
@@ -101,10 +98,7 @@ class LIFLIFChainTest(unittest.TestCase):
         w_upper = np.random.normal(0.1, 0.01, size=(n_in, n_upper)) * norm_factor
         w_lower = np.random.normal(0.1, 0.01, size=(n_upper, n_lower)) * norm_factor
         w_eps = 1e-6
-        input_spikes = list()
-        for nrn_idx in range(n_in):
-            times = get_poisson_times(isi, t_max)
-            input_spikes.extend([Spike(source_neuron=nrn_idx, time=t) for t in times])
+        input_spikes = get_poisson_spikes(isi, t_max, n_in)
         grad_numerical_upper = np.zeros_like(w_upper)
         for idx in product(range(n_in), range(n_upper)):
             w_plus = np.copy(w_upper)
@@ -112,16 +106,16 @@ class LIFLIFChainTest(unittest.TestCase):
             upper_layer = LIFLayer(upper_pars, w_plus)
             lower_layer = LIFLayer(lower_pars, w_lower)
             lower_layer(upper_layer(input_spikes))
-            assert len(lower_layer.post_spikes) > 0
-            t_plus = sum([spike.time for spike in lower_layer.post_spikes])
+            assert lower_layer.post_spikes.n_spikes > 0
+            t_plus = np.sum(lower_layer.post_spikes.times)
 
             w_minus = np.copy(w_upper)
             w_minus[idx] -= w_eps
             upper_layer = LIFLayer(upper_pars, w_minus)
             lower_layer = LIFLayer(lower_pars, w_lower)
             lower_layer(upper_layer(input_spikes))
-            assert len(lower_layer.post_spikes) > 0
-            t_minus = sum([spike.time for spike in lower_layer.post_spikes])
+            assert lower_layer.post_spikes.n_spikes > 0
+            t_minus = np.sum(lower_layer.post_spikes.times)
 
             grad_numerical_upper[idx] = (t_plus - t_minus) / (2 * w_eps)
 
@@ -132,24 +126,23 @@ class LIFLIFChainTest(unittest.TestCase):
             upper_layer = LIFLayer(upper_pars, w_upper)
             lower_layer = LIFLayer(lower_pars, w_plus)
             lower_layer(upper_layer(input_spikes))
-            assert len(lower_layer.post_spikes) > 0
-            t_plus = sum([spike.time for spike in lower_layer.post_spikes])
+            assert lower_layer.post_spikes.n_spikes > 0
+            t_plus = np.sum(lower_layer.post_spikes.times)
 
             w_minus = np.copy(w_lower)
             w_minus[idx] -= w_eps
             upper_layer = LIFLayer(upper_pars, w_upper)
             lower_layer = LIFLayer(lower_pars, w_minus)
             lower_layer(upper_layer(input_spikes))
-            assert len(lower_layer.post_spikes) > 0
-            t_minus = sum([spike.time for spike in lower_layer.post_spikes])
+            assert lower_layer.post_spikes.n_spikes > 0
+            t_minus = np.sum(lower_layer.post_spikes.times)
 
             grad_numerical_lower[idx] = (t_plus - t_minus) / (2 * w_eps)
 
         upper_layer = LIFLayer(upper_pars, w_upper)
         lower_layer = LIFLayer(lower_pars, w_lower)
         lower_layer(upper_layer(input_spikes))
-        for spike in lower_layer.post_spikes:
-            spike.error = 1
+        lower_layer.post_spikes.errors[:] = 1.0
         lower_layer.backward()
         assert_almost_equal(grad_numerical_lower, lower_layer.gradient)
         assert_almost_equal(grad_numerical_upper, upper_layer.gradient)
@@ -169,10 +162,7 @@ class LossLIFChainTest(unittest.TestCase):
         norm_factor = get_normalization_factor(parameters.tau_mem, parameters.tau_syn)
         w_in = np.random.normal(0.5, 0.1, size=(n_in, n_neurons)) * norm_factor
         w_eps = 1e-4
-        input_spikes = list()
-        for nrn_idx in range(n_in):
-            times = get_poisson_times(isi, t_max)
-            input_spikes.extend([Spike(source_neuron=nrn_idx, time=t) for t in times])
+        input_spikes = get_poisson_spikes(isi, t_max, n_in)
         grad_numerical = np.zeros_like(w_in)
         for idx in product(range(n_in), range(n_neurons)):
             w_plus = np.copy(w_in)
@@ -180,7 +170,7 @@ class LossLIFChainTest(unittest.TestCase):
             layer = LIFLayer(parameters, w_plus)
             loss_layer = TTFSCrossEntropyLoss(loss_params)
             loss_layer(layer(input_spikes))
-            assert len(layer.post_spikes) > 0
+            assert layer.post_spikes.n_spikes > 0
             loss_plus = loss_layer.get_loss(0)
 
             w_minus = np.copy(w_in)
@@ -188,7 +178,7 @@ class LossLIFChainTest(unittest.TestCase):
             layer = LIFLayer(parameters, w_minus)
             loss_layer = TTFSCrossEntropyLoss(loss_params)
             loss_layer(layer(input_spikes))
-            assert len(layer.post_spikes) > 0
+            assert layer.post_spikes.n_spikes > 0
             loss_minus = loss_layer.get_loss(0)
 
             grad_numerical[idx] = (loss_plus - loss_minus) / (2 * w_eps)
@@ -204,7 +194,7 @@ class LossLIFChainTest(unittest.TestCase):
         loss_params = TTFSCrossEntropyLossParameters(n=11, alpha=1)
         norm_factor = get_normalization_factor(lif_params.tau_mem, lif_params.tau_syn)
         w_in = np.eye(lif_params.n_in, lif_params.n) * 1.1 * norm_factor
-        input_spikes = [Spike(source_neuron=0, time=0)]
+        input_spikes = Spikes(np.array([0]), np.array([0]))
         w_eps = 1e-8
         w_save = w_in[0, 0]
 
@@ -212,14 +202,14 @@ class LossLIFChainTest(unittest.TestCase):
         loss_layer = TTFSCrossEntropyLoss(loss_params)
         lif_layer = LIFLayer(lif_params, w_in)
         loss_layer(lif_layer(input_spikes))
-        assert len(lif_layer.post_spikes) > 0
+        assert lif_layer.post_spikes.n_spikes > 0
         loss_plus = loss_layer.get_loss(0)
 
         w_in[0, 0] = w_save - w_eps
         loss_layer = TTFSCrossEntropyLoss(loss_params)
         lif_layer = LIFLayer(lif_params, w_in)
         loss_layer(lif_layer(input_spikes))
-        assert len(lif_layer.post_spikes) > 0
+        assert lif_layer.post_spikes.n_spikes > 0
         loss_minus = loss_layer.get_loss(0)
 
         numerical_grad = (loss_plus - loss_minus) / (2 * w_eps)
@@ -239,7 +229,7 @@ class LossLIFChainTest(unittest.TestCase):
 
         loss_layer = TTFSCrossEntropyLoss(loss_params)
         lif_layer = LIFLayer(lif_params, w_in)
-        input_spikes = [Spike(source_neuron=0, time=0)]
+        input_spikes = Spikes(np.array([0]), np.array([0]))
 
         loss_layer(lif_layer(input_spikes))
         loss_layer.backward(0)

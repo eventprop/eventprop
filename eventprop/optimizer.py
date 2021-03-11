@@ -16,8 +16,7 @@ class Optimizer(ABC):
         while ancestor_layer is not None:
             if not isinstance(ancestor_layer, LIFLayer):
                 continue
-            ancestor_layer.gradient = np.zeros_like(ancestor_layer.gradient)
-            ancestor_layer._lif_cpp.zero_grad()
+            ancestor_layer.gradient[:] = 0
             ancestor_layer = ancestor_layer.ancestor_layer
 
     @abstractmethod

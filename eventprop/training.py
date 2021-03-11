@@ -71,12 +71,10 @@ class AbstractTwoLayer(ABC):
         if self.gd_parameters.minibatch_size is None:
             return self.train_spikes
         else:
-            samples = deepcopy(
-                self.train_spikes[
-                    self._minibatch_idx : self._minibatch_idx
-                    + self.gd_parameters.minibatch_size
-                ]
-            )
+            samples = self.train_spikes[
+                self._minibatch_idx : self._minibatch_idx
+                + self.gd_parameters.minibatch_size
+            ]
             self._minibatch_idx += self.gd_parameters.minibatch_size
             self._minibatch_idx %= len(self.train_spikes)
             return samples
@@ -84,10 +82,10 @@ class AbstractTwoLayer(ABC):
     def _get_results_for_set(self, patterns):
         accuracies, losses, first_spikes = list(), list(), list()
         for pattern in patterns:
-            self.loss(self.output_layer(self.hidden_layer(pattern.spikes)))
+            self.loss(self.output_layer(self.hidden_layer(pattern)))
             accuracies.append(self.loss.get_classification_result(pattern.label))
             losses.append(self.loss.get_loss(pattern.label))
-            first_spikes.append(deepcopy(self.loss.first_spikes))
+            first_spikes.append(self.loss.first_spike_times.copy())
         logging.debug(f"Got accuracy: {np.mean(accuracies)}.")
         logging.debug(f"Got loss: {np.mean(losses)}.")
         return np.nanmean(losses), np.mean(accuracies), first_spikes
@@ -115,21 +113,23 @@ class AbstractTwoLayer(ABC):
             batch_losses, batch_classif_results = list(), list()
             frac_quiet_output, frac_quiet_hidden = list(), list()
             for pattern in minibatch:
-                self.loss(self.output_layer(self.hidden_layer(pattern.spikes)))
+                self.loss(self.output_layer(self.hidden_layer(pattern)))
                 self.loss.backward(pattern.label)
                 batch_losses.append(self.loss.get_loss(pattern.label))
                 batch_classif_results.append(
                     self.loss.get_classification_result(pattern.label)
                 )
                 frac_quiet_output.append(
-                    sum(
-                        [len(x) == 0 for x in self.output_layer._post_spikes_per_neuron]
+                    (
+                        self.output_layer.parameters.n
+                        - np.unique(self.output_layer.post_spikes.sources).size
                     )
                     / self.output_layer.parameters.n
                 )
                 frac_quiet_hidden.append(
-                    sum(
-                        [len(x) == 0 for x in self.hidden_layer._post_spikes_per_neuron]
+                    (
+                        self.hidden_layer.parameters.n
+                        - np.unique(self.hidden_layer.post_spikes.sources).size
                     )
                     / self.hidden_layer.parameters.n
                 )

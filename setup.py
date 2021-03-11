@@ -5,7 +5,15 @@ cpp_ext = setuptools.Extension(
     sources=["src/lif_layer_cpp.cpp"],
     include_dirs=["src/pybind11/include", "src/eigen"],
     language="c++",
-    extra_compile_args=["-std=c++11", "-Ofast"],
+    extra_compile_args=[
+        "-std=c++17",
+        "-O3",
+        "-march=native",
+        "-fopenmp",
+        "-freciprocal-math",
+        "-fno-signed-zeros",
+        "-funroll-loops",
+    ],
 )
 
 yin_yang_dir = "eventprop/yin_yang_data_set/publication_data"

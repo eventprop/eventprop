@@ -1,3 +1,4 @@
+from test.test_lif_layer import get_poisson_spikes
 import unittest
 from itertools import product
 import numpy as np
@@ -8,41 +9,43 @@ from eventprop.loss_layer import (
     TTFSCrossEntropyLossParameters,
     VMaxCrossEntropyLoss,
 )
-from eventprop.layer import Spike
+from eventprop.layer import Spikes
 from eventprop.li_layer import LILayerParameters
-from test.test_li_layer import get_poisson_times
+from test_lif_layer import get_poisson_spikes
 
 
 class TTFSCrossEntropyLossTest(unittest.TestCase):
     def test_numerical_gradient_vs_error(self):
         params = TTFSCrossEntropyLossParameters()
-        artificial_output = list()
-        for idx in range(params.n):
-            artificial_output.append(Spike(source_neuron=idx, time=0.001 * (idx)))
+        artificial_output = Spikes(np.arange(params.n) * 0.001, np.arange(params.n))
         for label_neuron in range(params.n):
             t_eps = 1e-9
             numerical_grads = list()
-            for spike in artificial_output:
-                saved_time = spike.time
-                spike.time += t_eps
+            for spike_idx in range(params.n):
+                saved_time = artificial_output.times[spike_idx]
+                artificial_output.times[spike_idx] += t_eps
                 loss = TTFSCrossEntropyLoss(params)
                 loss.forward(artificial_output)
                 loss_plus = loss.get_loss(label_neuron)
-                spike.time = saved_time
+                artificial_output.times[spike_idx] = saved_time
 
-                spike.time -= t_eps
+                artificial_output.times[spike_idx] -= t_eps
                 loss = TTFSCrossEntropyLoss(params)
                 loss.forward(artificial_output)
                 loss_minus = loss.get_loss(label_neuron)
-                spike.time = saved_time
+                artificial_output.times[spike_idx] = saved_time
 
                 numerical_grads.append((loss_plus - loss_minus) / (2 * t_eps))
 
             loss = TTFSCrossEntropyLoss(params)
             loss.forward(artificial_output)
             loss.backward(label_neuron)
-            for spike, num_grad in zip(artificial_output, numerical_grads):
-                assert_allclose(spike.error, num_grad, rtol=1e-6)
+            for spike_idx in range(params.n):
+                assert_allclose(
+                    artificial_output.errors[spike_idx],
+                    numerical_grads[spike_idx],
+                    rtol=1e-6,
+                )
 
 
 class VMaxCrossEntropyLossTest(unittest.TestCase):
@@ -56,9 +59,7 @@ class VMaxCrossEntropyLossTest(unittest.TestCase):
         np.random.seed(0)
         w = np.random.normal(1, 1, size=(10, 10))
         params = LILayerParameters(n_in=n_in, n=n_class)
-        artificial_output = list()
-        for idx in range(params.n):
-            artificial_output.append(Spike(source_neuron=idx, time=0.001 * (idx)))
+        artificial_output = Spikes(np.arange(params.n) * 0.001, np.arange(params.n))
         # test vmax gradient
         for label_neuron in range(params.n):
             v_eps = 1e-6
@@ -89,32 +90,32 @@ class VMaxCrossEntropyLossTest(unittest.TestCase):
         params = LILayerParameters(n_in=n_in, n=n_class)
         # test spike gradient
         for label_neuron in range(params.n):
-            artificial_output = list()
-            for idx in range(params.n):
-                artificial_output.append(Spike(source_neuron=idx, time=0.001 * (idx)))
+            artificial_output = Spikes(np.arange(params.n) * 0.001, np.arange(params.n))
             t_eps = 1e-8
             numerical_grads = list()
-            for spike in artificial_output:
-                saved_time = spike.time
-                spike.time += t_eps
+            for spike_idx in range(artificial_output.n_spikes):
+                saved_time = artificial_output.times[spike_idx]
+                artificial_output.times[spike_idx] += t_eps
                 loss = VMaxCrossEntropyLoss(params, w_in=w)
                 loss.forward(artificial_output)
                 loss_plus = loss.get_loss(label_neuron)
-                spike.time = saved_time
+                artificial_output.times[spike_idx] = saved_time
 
-                spike.time -= t_eps
+                artificial_output.times[spike_idx] -= t_eps
                 loss = VMaxCrossEntropyLoss(params, w_in=w)
                 loss.forward(artificial_output)
                 loss_minus = loss.get_loss(label_neuron)
-                spike.time = saved_time
+                artificial_output.times[spike_idx] = saved_time
 
                 numerical_grads.append((loss_plus - loss_minus) / (2 * t_eps))
 
             loss = VMaxCrossEntropyLoss(params, w_in=w)
             loss.forward(artificial_output)
             loss.backward(label_neuron)
-            for spike, num_grad in zip(artificial_output, numerical_grads):
-                assert_almost_equal(spike.error, num_grad)
+            for spike_idx in range(artificial_output.n_spikes):
+                assert_almost_equal(
+                    artificial_output.errors[spike_idx], numerical_grads[spike_idx]
+                )
 
     def test_numerical_weight_gradient_vs_error(self):
         np.random.seed(0)
@@ -127,10 +128,7 @@ class VMaxCrossEntropyLossTest(unittest.TestCase):
         )
         w_in = np.random.normal(1, 1, size=(n_in, n_neurons))
         w_eps = 1e-8
-        input_spikes = list()
-        for nrn_idx in range(n_in):
-            times = get_poisson_times(isi, t_max)
-            input_spikes.extend([Spike(source_neuron=nrn_idx, time=t) for t in times])
+        input_spikes = get_poisson_spikes(isi, t_max, n_in)
         for label in range(n_neurons):
             grad_numerical = np.zeros_like(w_in)
             for syn_idx, nrn_idx in product(range(n_in), range(n_neurons)):

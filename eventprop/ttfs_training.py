@@ -1,5 +1,4 @@
 from .training import AbstractTwoLayer
-from .optimizer import GradientDescentParameters, Optimizer, Adam
 from .lif_layer import LIFLayer, LIFLayerParameters
 from .loss_layer import TTFSCrossEntropyLoss, TTFSCrossEntropyLossParameters
 

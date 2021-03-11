@@ -1,11 +1,7 @@
 import numpy as np
-from time import sleep
 import os
-import signal
-import logging
 
-from eventprop.layer import SpikePattern
-from eventprop.lif_layer_cpp import Spike
+from eventprop.layer import Spikes
 from eventprop.lif_layer import LIFLayerParameters
 from eventprop.ttfs_training import TwoLayerTTFS, TTFSCrossEntropyLossParameters
 from eventprop.optimizer import GradientDescentParameters
@@ -55,16 +51,16 @@ class YinYangTTFS(TwoLayerTTFS):
         def get_patterns(samples, labels):
             patterns = list()
             for s, l in zip(samples, labels):
-                spikes = [
-                    Spike(
-                        time=self.t_min + x * (self.t_max - self.t_min),
-                        source_neuron=idx,
-                    )
-                    for idx, x in enumerate(s)
-                ]
-                spikes += [Spike(time=self.t_bias, source_neuron=len(s))]
-                spikes.sort(key=lambda x: x.time)
-                patterns.append(SpikePattern(spikes, l))
+                times = np.array(
+                    [self.t_min + x * (self.t_max - self.t_min) for x in s]
+                    + [self.t_bias],
+                    dtype=np.float64,
+                )
+                sources = np.arange(len(s) + 1, dtype=np.int32)
+                sort_idxs = np.argsort(times)
+                times = times[sort_idxs]
+                sources = sources[sort_idxs]
+                patterns.append(Spikes(times, sources, label=l))
             return patterns
 
         self.train_spikes, self.test_spikes, self.valid_spikes = (

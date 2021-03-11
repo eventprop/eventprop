@@ -1,30 +1,11 @@
 import unittest
 import numpy as np
-import logging
-import pickle
-import os
-from itertools import product
 from numpy.testing import assert_almost_equal
 from numpy.testing._private.utils import assert_equal
 
-from eventprop.li_layer import LILayer, LILayerParameters, Spike
-
-
-def get_normalization_factor(tau_mem: float, tau_syn: float) -> float:
-    tau_factor = tau_mem / tau_syn
-    return (
-        (tau_mem - tau_syn)
-        / tau_syn
-        * np.power(tau_factor, tau_factor / (tau_factor - 1))
-        / (tau_factor - 1)
-    )
-
-
-def get_poisson_times(isi, t_max):
-    times = [np.random.exponential(isi)]
-    while times[-1] < t_max:
-        times.append(times[-1] + np.random.exponential(isi))
-    return times[:-1]
+from eventprop.li_layer import LILayer, LILayerParameters
+from eventprop.layer import Spikes
+from test_lif_layer import get_poisson_spikes, get_normalization_factor
 
 
 class LILayerTest(unittest.TestCase):
@@ -50,9 +31,7 @@ class LILayerTest(unittest.TestCase):
             * np.log(parameters.tau_mem / parameters.tau_syn)
         )
         w_in = np.eye(n_in, n_neurons) * norm_factor
-        input_spikes = [
-            Spike(source_neuron=nrn_idx, time=0.1) for nrn_idx in range(n_in)
-        ]
+        input_spikes = Spikes(np.full(n_in, 0.1), np.arange(n_in))
         layer = LILayer(parameters, w_in)
         layer.forward(input_spikes, code=self.code)
         for vmax in layer.vmax[:n_in]:
@@ -64,12 +43,10 @@ class LILayerTest(unittest.TestCase):
             assert vmax.time is None
             assert_equal(vmax.error, 0)
 
-        input_spikes = [
-            Spike(source_neuron=nrn_idx, time=0.05) for nrn_idx in range(n_in)
-        ]
-        input_spikes += [
-            Spike(source_neuron=nrn_idx, time=0.1) for nrn_idx in range(n_in)
-        ]
+        input_spikes = Spikes(
+            np.concatenate([np.full(n_in, 0.05), np.full(n_in, 0.1)]),
+            np.concatenate([np.arange(n_in), np.arange(n_in)]),
+        )
         t_max = (
             (parameters.tau_mem * parameters.tau_syn)
             / (parameters.tau_mem - parameters.tau_syn)
@@ -113,19 +90,15 @@ class LILayerTest(unittest.TestCase):
         )
         norm_factor = get_normalization_factor(parameters.tau_mem, parameters.tau_syn)
         w_in = np.eye(n_in, n_neurons) * norm_factor
-        input_spikes = [
-            Spike(source_neuron=nrn_idx, time=0.1) for nrn_idx in range(n_in)
-        ]
+        input_spikes = Spikes(np.full(n_in, 0.1), np.arange(n_in))
         layer = LILayer(parameters, w_in)
         layer.forward(input_spikes, code=self.code)
         layer.backward(code=self.code)
         assert np.all(layer.gradient == 0)
-        assert np.all([spike.error == 0 for spike in input_spikes])
+        assert np.all(input_spikes.errors == 0)
 
         w_in = np.eye(n_in, n_neurons) * 1.0001 * norm_factor
-        input_spikes = [
-            Spike(source_neuron=nrn_idx, time=0.1) for nrn_idx in range(n_in)
-        ]
+        input_spikes = Spikes(np.full(n_in, 0.1), np.arange(n_in))
         layer = LILayer(parameters, w_in)
         layer.forward(input_spikes, code=self.code)
 
@@ -133,9 +106,7 @@ class LILayerTest(unittest.TestCase):
         for vmax in layer.vmax:
             vmax.error = 1
         layer.backward(code=self.code)
-        assert_almost_equal(
-            [spike.error for spike in input_spikes], np.zeros(len(input_spikes))
-        )
+        assert_almost_equal(input_spikes.errors, np.zeros_like(input_spikes.errors))
         for grad in layer.gradient[:, 0]:
             assert_almost_equal(grad, grad_analytical)
 
@@ -150,10 +121,7 @@ class LILayerTest(unittest.TestCase):
         )
         w_in = np.random.normal(1, 1, size=(n_in, n_neurons))
         w_eps = 1e-8
-        input_spikes = list()
-        for nrn_idx in range(n_in):
-            times = get_poisson_times(isi, t_max)
-            input_spikes.extend([Spike(source_neuron=nrn_idx, time=t) for t in times])
+        input_spikes = get_poisson_spikes(isi, t_max, n_in)
         grad_numerical = np.zeros_like(w_in)
         for syn_idx in range(n_in):
             w_plus = np.copy(w_in)
@@ -190,7 +158,7 @@ class LILayerTest(unittest.TestCase):
         w_save = 1.2 * norm_factor
         w_in = np.zeros((n_in, n_neurons))
         w_in[0, 0] = w_save
-        input_spikes = [Spike(source_neuron=0, time=0.1)]
+        input_spikes = Spikes(np.array([0.1]), np.array([0]))
         w_in[0, 0] = w_save + w_eps
         layer = LILayer(parameters, w_in)
         layer.forward(input_spikes, code=self.code)
@@ -206,18 +174,13 @@ class LILayerTest(unittest.TestCase):
         layer.backward(code=self.code)
         grad_numerical = (v_plus - v_minus) / (2 * w_eps)
         assert_almost_equal(grad_numerical, layer.gradient[0, 0])
-        assert_almost_equal(
-            [spike.error for spike in input_spikes], np.zeros(len(input_spikes))
-        )
+        assert_almost_equal(input_spikes.errors, np.zeros_like(input_spikes.errors))
 
         # Test with two pre spikes
         w_save = 0.6 * norm_factor
         w_in = np.zeros((n_in, n_neurons))
         w_in[0, 0] = w_save
-        input_spikes = [
-            Spike(source_neuron=0, time=0.1),
-            Spike(source_neuron=0, time=0.105),
-        ]
+        input_spikes = Spikes(np.array([0.1, 0.105]), np.array([0, 0]))
         w_in[0, 0] = w_save + w_eps
         layer = LILayer(parameters, w_in)
         layer.forward(input_spikes, code=self.code)
@@ -246,7 +209,7 @@ class LILayerTest(unittest.TestCase):
         w_save = 1.9 * norm_factor
         w_in = np.zeros((n_in, n_neurons))
         w_in[0, 0] = w_save
-        input_spikes = [Spike(source_neuron=0, time=0.1)]
+        input_spikes = Spikes(np.array([0.1]), np.array([0]))
         # Test gradient for first post spike
         w_in[0, 0] = w_save + w_eps
         layer = LILayer(parameters, w_in)
@@ -264,9 +227,7 @@ class LILayerTest(unittest.TestCase):
         layer.backward(code=self.code)
         grad_numerical = (v_plus - v_minus) / (2 * w_eps)
         assert_almost_equal(grad_numerical, layer.gradient[0, 0])
-        assert_almost_equal(
-            [spike.error for spike in input_spikes], np.zeros(len(input_spikes))
-        )
+        assert_almost_equal(input_spikes.errors, np.zeros_like(input_spikes.errors))
 
         # Test gradient for second post spike
         w_in[0, 0] = w_save + w_eps
@@ -285,9 +246,7 @@ class LILayerTest(unittest.TestCase):
         layer.backward(code=self.code)
         grad_numerical = (v_plus - v_minus) / (2 * w_eps)
         assert_almost_equal(grad_numerical, layer.gradient[0, 0])
-        assert_almost_equal(
-            [spike.error for spike in input_spikes], np.zeros(len(input_spikes))
-        )
+        assert_almost_equal(input_spikes.errors, np.zeros_like(input_spikes.errors))
 
         # Test gradient for both post spikes
         w_in[0, 0] = w_save + w_eps
@@ -306,9 +265,7 @@ class LILayerTest(unittest.TestCase):
         layer.backward(code=self.code)
         grad_numerical = (v_plus - v_minus) / (2 * w_eps)
         assert_almost_equal(grad_numerical, layer.gradient[0, 0])
-        assert_almost_equal(
-            [spike.error for spike in input_spikes], np.zeros(len(input_spikes))
-        )
+        assert_almost_equal(input_spikes.errors, np.zeros_like(input_spikes.errors))
 
 
 if __name__ == "__main__":
