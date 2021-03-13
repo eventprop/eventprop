@@ -1,7 +1,7 @@
 import numpy as np
 import os
 
-from eventprop.layer import Spikes
+from eventprop.layer import Spikes, SpikeDataset
 from eventprop.lif_layer import LIFLayerParameters
 from eventprop.ttfs_training import TwoLayerTTFS, TTFSCrossEntropyLossParameters
 from eventprop.optimizer import GradientDescentParameters
@@ -48,9 +48,9 @@ class YinYangTTFS(TwoLayerTTFS):
         test_labels = np.load(os.path.join(dir_path, "test_labels.npy"))
         valid_labels = np.load(os.path.join(dir_path, "validation_labels.npy"))
 
-        def get_patterns(samples, labels):
-            patterns = list()
-            for s, l in zip(samples, labels):
+        def get_batch(samples, labels):
+            spikes = list()
+            for s in samples:
                 times = np.array(
                     [self.t_min + x * (self.t_max - self.t_min) for x in s]
                     + [self.t_bias],
@@ -60,13 +60,13 @@ class YinYangTTFS(TwoLayerTTFS):
                 sort_idxs = np.argsort(times)
                 times = times[sort_idxs]
                 sources = sources[sort_idxs]
-                patterns.append(Spikes(times, sources, label=l))
-            return patterns
+                spikes.append(Spikes(times, sources))
+            return SpikeDataset(spikes, labels)
 
-        self.train_spikes, self.test_spikes, self.valid_spikes = (
-            get_patterns(train_samples, train_labels),
-            get_patterns(test_samples, test_labels),
-            get_patterns(valid_samples, valid_labels),
+        self.train_batch, self.test_batch, self.valid_batch = (
+            get_batch(train_samples, train_labels),
+            get_batch(test_samples, test_labels),
+            get_batch(valid_samples, valid_labels),
         )
 
 

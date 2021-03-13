@@ -4,26 +4,29 @@ from typing import List, Union, Tuple
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
+from .lif_layer_cpp import Spikes
+
 # fmt: off
 @dataclass
-class Spikes:
-    times          : np.ndarray
-    sources        : np.ndarray
-    errors         : np.ndarray = None
-    source_layer   : int        = 0
-    label          : int        = None
-    n_spikes       : int        = None
+class SpikeDataset:
+    spikes         : List[Spikes]
+    labels         : np.ndarray
 
     def __post_init__(self):
-        assert len(self.times) == len(self.sources)
-        self.sources = self.sources.astype(np.int32, copy=False)
-        self.times = self.times.astype(np.float64, copy=False)
-        if self.n_spikes is None:
-            self.n_spikes = self.times.size
-        if self.errors is None:
-            self.errors = np.zeros(self.n_spikes, dtype=np.float64)
-        elif self.errors is not None:
-            self.errors = self.errors.astype(np.float64, copy=False)
+        assert len(self.spikes) == self.labels.size
+
+    def __getitem__(self, key):
+        return SpikeDataset(self.spikes[key], self.labels[key])
+
+    def __len__(self):
+        return len(self.spikes)
+
+    def shuffle(self):
+        idxs = np.arange(len(self))
+        np.random.shuffle(idxs)
+        self.spikes = np.array(self.spikes)[idxs].tolist()
+        self.labels = self.labels[idxs]
+
 @dataclass
 class VMax:
     time           : float
@@ -34,27 +37,27 @@ class VMax:
 
 class Layer(ABC):
     def __init__(self):
-        self.input_spikes = None
+        self.input_batch = None
         self.ancestor_layer = None
         self._ran_forward = False
         self._ran_backward = False
 
     def __call__(
-        self, arg: Union[Spikes, Tuple[Spikes, Layer]]
-    ) -> Tuple[Spikes, Layer]:
+        self,
+        arg: Union[List[Spikes], Tuple[List[Spikes], Layer]],
+    ) -> Union[Tuple[Spikes, Layer], Tuple[List[Spikes], Layer]]:
         if isinstance(arg, tuple):
-            if isinstance(arg[0], Spikes) and isinstance(arg[1], Layer):
+            if isinstance(arg[0], list) and isinstance(arg[1], Layer):
                 self.ancestor_layer = arg[1]
-                input_spikes = arg[0]
-            else:
-                raise RuntimeError("Arguments not recognized.")
-        elif isinstance(arg, Spikes):
-            input_spikes = arg
-        return self.forward(input_spikes), self
+                return self.forward(arg[0]), self
+            raise RuntimeError("Arguments not recognized.")
+        elif isinstance(arg, list):
+            return self.forward(arg), self
+        raise RuntimeError("Arguments not recognized.")
 
     @abstractmethod
-    def forward(self, input_spikes: Spikes):
-        self.input_spikes = input_spikes
+    def forward(self, input_batch: List[Spikes]):
+        self.input_batch = input_batch
 
     @abstractmethod
     def backward(self):

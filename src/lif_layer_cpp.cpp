@@ -6,18 +6,18 @@
 #include <cmath>
 #include <cstdio>
 #include <functional>
-#include <pybind11/eigen.h>
-#include <pybind11/stl.h>
 #include <Eigen/Core>
 
 using namespace pybind11::literals;
 
-py::tuple compute_spikes(Eigen::Ref<RowMatrixXd const> w, Eigen::Ref<Eigen::ArrayXd const> times, Eigen::Ref<Eigen::ArrayXi const> sources, double v_th, double tau_mem, double tau_syn) {
+std::pair<Eigen::ArrayXd, Eigen::ArrayXi> compute_spikes(Eigen::Ref<RowMatrixXd const> w, Spikes const& spikes, double v_th, double tau_mem, double tau_syn) {
   // compute constants
   auto const k_prefactor = tau_syn/(tau_mem-tau_syn);
   auto const tmax_prefactor = 1/(1/tau_mem-1/tau_syn);
   auto const tmax_summand = std::log(tau_syn/tau_mem);
 
+  auto const& times = spikes.times;
+  auto const& sources = spikes.sources;
   Eigen::ArrayXd const exp_input_mem = Eigen::exp(times.array() / tau_mem);
   Eigen::ArrayXd const exp_input_syn = Eigen::exp(times.array() / tau_syn);
   auto const n_spikes = times.size();
@@ -30,11 +30,11 @@ py::tuple compute_spikes(Eigen::Ref<RowMatrixXd const> w, Eigen::Ref<Eigen::Arra
     sum1.row(i + 1) = sum1.row(i).array() + exp_input_mem[i] * w.row(sources[i]).array();
   }
 
-  std::vector<std::vector<double>> post_times(n);
+  std::vector<std::vector<double>> post_spikes(n);
   // define functions to compute voltage and maxima
   auto v = [&](double t, int target_nrn_idx, int t_pre_idx) {
     auto mem =  k_prefactor*(sum1(t_pre_idx, target_nrn_idx)*std::exp(-t/tau_mem) - sum0(t_pre_idx, target_nrn_idx)*std::exp(-t/tau_syn));
-    for (auto time: post_times.at(target_nrn_idx)) {
+    for (auto time: post_spikes.at(target_nrn_idx)) {
       if (time > t) break;
       mem -= v_th*std::exp(-(t-time)/tau_mem);
     }
@@ -55,7 +55,7 @@ py::tuple compute_spikes(Eigen::Ref<RowMatrixXd const> w, Eigen::Ref<Eigen::Arra
     double sum0_elem = sum0(t_pre_idx, target_nrn_idx);
     double sum1_elem = sum1(t_pre_idx, target_nrn_idx);
     double t_before = times[t_pre_idx - 1];
-    for (auto time : post_times.at(target_nrn_idx)) {
+    for (auto time : post_spikes.at(target_nrn_idx)) {
       if (t_input <= time)
         break;
       sum1_elem += -v_th * std::exp(time / tau_mem);
@@ -98,7 +98,7 @@ py::tuple compute_spikes(Eigen::Ref<RowMatrixXd const> w, Eigen::Ref<Eigen::Arra
             t_before = 0;
             if (i > 0) {
               t_before = times[i - 1];
-              for (auto time : post_times.at(target_nrn_idx)) {
+              for (auto time : post_spikes.at(target_nrn_idx)) {
                 if (time > t_pre)
                   break;
                 if (t_before < time) {
@@ -107,7 +107,7 @@ py::tuple compute_spikes(Eigen::Ref<RowMatrixXd const> w, Eigen::Ref<Eigen::Arra
               }
             }
             t_post = bracket_spike(t_before, tmax, target_nrn_idx, i);
-            post_times.at(target_nrn_idx).push_back(t_post);
+            post_spikes.at(target_nrn_idx).push_back(t_post);
             #pragma omp critical
             all_post_spikes.push_back({t_post, target_nrn_idx});
             processed_up_to = i;
@@ -118,7 +118,7 @@ py::tuple compute_spikes(Eigen::Ref<RowMatrixXd const> w, Eigen::Ref<Eigen::Arra
           t_before = times[i - 1];
           tmax = t_pre;
           t_post = bracket_spike(t_before, tmax, target_nrn_idx, i);
-          post_times.at(target_nrn_idx).push_back(t_post);
+          post_spikes.at(target_nrn_idx).push_back(t_post);
           #pragma omp critical
           all_post_spikes.push_back({t_post, target_nrn_idx});
           processed_up_to = i;
@@ -130,22 +130,33 @@ py::tuple compute_spikes(Eigen::Ref<RowMatrixXd const> w, Eigen::Ref<Eigen::Arra
       }
     }
   }
-  Eigen::ArrayXd all_times_array(all_post_spikes.size());
-  Eigen::ArrayXi all_sources_array(all_post_spikes.size());
+  auto all_times_array = Eigen::ArrayXd(all_post_spikes.size());
+  auto all_sources_array = Eigen::ArrayXi(all_post_spikes.size());
   std::sort(all_post_spikes.begin(), all_post_spikes.end(), [](std::pair<double, int> a, std::pair<double, int> b) { return a.first < b.first; });
   #pragma omp parallel for
-  for (size_t i=0; i<all_post_spikes.size(); i++) {
-    all_times_array[i] = all_post_spikes.at(i).first;
-    all_sources_array[i] = all_post_spikes.at(i).second;
+  for (int i=0; i<all_post_spikes.size(); i++) {
+    all_times_array(i) = all_post_spikes.at(i).first;
+    all_sources_array(i) = all_post_spikes.at(i).second;
   }
-  return py::make_tuple(all_times_array, all_sources_array);
+  return {all_times_array, all_sources_array};
 }
 
-void backward(Eigen::Ref<Eigen::ArrayXd const> input_times, Eigen::Ref<Eigen::ArrayXi const> input_sources, Eigen::Ref<Eigen::ArrayXd const> post_times, Eigen::Ref<Eigen::ArrayXi const> post_sources, Eigen::Ref<Eigen::ArrayXd> input_errors, Eigen::Ref<Eigen::ArrayXd const> post_errors, Eigen::Ref<RowMatrixXd const> w, Eigen::Ref<RowMatrixXd> gradient, double v_th, double tau_mem, double tau_syn) {
+py::list compute_spikes_batch(Eigen::Ref<RowMatrixXd const> w, py::list batch, double v_th, double tau_mem, double tau_syn) {
+  auto result = py::list();
+  //#pragma omp parallel for
+  for (int batch_idx=0; batch_idx<batch.size(); batch_idx++) {
+    auto post_spikes_arrays = compute_spikes(w, batch[batch_idx].cast<Spikes const&>(), v_th, tau_mem, tau_syn);
+    auto post_spikes = Spikes(post_spikes_arrays.first, post_spikes_arrays.second);
+    result.append(post_spikes);
+  }
+  return result;
+}
+
+void backward(Spikes& input_spikes, Spikes const& post_spikes, Eigen::Ref<RowMatrixXd const> w, Eigen::Ref<RowMatrixXd> gradient, double v_th, double tau_mem, double tau_syn) {
   auto const n = gradient.cols();
 
-  std::vector<int> input_idxs(input_times.size());
-  std::vector<int> post_idxs(post_times.size());
+  std::vector<int> input_idxs(input_spikes.times.size());
+  std::vector<int> post_idxs(post_spikes.times.size());
   std::vector<std::pair<int, bool>> sorted_idxs;
   std::iota(input_idxs.begin(), input_idxs.end(), 0);
   std::iota(post_idxs.begin(), post_idxs.end(), 0);
@@ -154,26 +165,26 @@ void backward(Eigen::Ref<Eigen::ArrayXd const> input_times, Eigen::Ref<Eigen::Ar
   std::sort(sorted_idxs.begin(), sorted_idxs.end(), [&](std::pair<int, bool> a, std::pair<int, bool> b) -> bool {
     double t_a, t_b;
     if (a.second)
-      t_a = input_times[a.first];
+      t_a = input_spikes.times[a.first];
     else
-      t_a = post_times[a.first];
+      t_a = post_spikes.times[a.first];
     if (b.second)
-      t_b = input_times[b.first];
+      t_b = input_spikes.times[b.first];
     else
-      t_b = post_times[b.first];
+      t_b = post_spikes.times[b.first];
     return t_a > t_b;
   });
   auto get_time = [&](std::pair<int, bool> idx) {
     if (idx.second)
-      return input_times[idx.first];
+      return input_spikes.times[idx.first];
     else
-      return post_times[idx.first];
+      return post_spikes.times[idx.first];
   };
   auto get_source = [&](std::pair<int, bool> idx) {
     if (idx.second)
-      return input_sources[idx.first];
+      return input_spikes.sources[idx.first];
     else
-      return post_sources[idx.first];
+      return post_spikes.sources[idx.first];
   };
   Eigen::ArrayXd lambda_v = Eigen::ArrayXd::Zero(n);
   std::vector<std::vector<std::pair<double, double>>> lambda_i_jumps(n);
@@ -183,10 +194,10 @@ void backward(Eigen::Ref<Eigen::ArrayXd const> input_times, Eigen::Ref<Eigen::Ar
   auto k_bwd = [&](double t) { return tau_mem/(tau_mem-tau_syn)*(std::exp(-t/tau_mem)-std::exp(-t/tau_syn)); };
   auto get_i = [&](double t, int target_nrn_idx) {
     double current = 0;
-    for (int idx=0; idx<input_times.size(); idx++) {
-      if (input_times[idx] > t)
+    for (int idx=0; idx<input_spikes.times.size(); idx++) {
+      if (input_spikes.times[idx] > t)
         break;
-      current += w(input_sources[idx], target_nrn_idx)*std::exp(-(t-input_times[idx])/tau_syn);
+      current += w(input_spikes.sources[idx], target_nrn_idx)*std::exp(-(t-input_spikes.times[idx])/tau_syn);
     }
     return current;
   };
@@ -204,18 +215,46 @@ void backward(Eigen::Ref<Eigen::ArrayXd const> input_times, Eigen::Ref<Eigen::Ar
         gradient(spike_source, nrn_idx) += -tau_syn*lambda_i[nrn_idx];
       }
       auto const outbound_signal = (w.row(spike_source).array().transpose() * (lambda_v - lambda_i)).sum();
-      input_errors[spike_idx.first] += outbound_signal;
+      input_spikes.errors[spike_idx.first] += outbound_signal;
     }
     else {
       auto const i = get_i(spike_time, spike_source);
-      lambda_i_jumps.at(spike_source).push_back({1/(i-v_th)*(v_th*lambda_v[spike_source]+post_errors[spike_idx.first]), t_bwd});
-      lambda_v[spike_source] = i/(i-v_th)*lambda_v[spike_source] + 1/(i-v_th)*post_errors[spike_idx.first];
+      lambda_i_jumps.at(spike_source).push_back({1/(i-v_th)*(v_th*lambda_v[spike_source]+post_spikes.errors[spike_idx.first]), t_bwd});
+      lambda_v[spike_source] = i/(i-v_th)*lambda_v[spike_source] + 1/(i-v_th)*post_spikes.errors[spike_idx.first];
     }
     previous_t = t_bwd;
   }
 }
 
+void backward_batch(py::list input_batch, py::list post_batch, Eigen::Ref<RowMatrixXd const> w, Eigen::Ref<RowMatrixXd> gradient, double v_th, double tau_mem, double tau_syn) {
+  auto const n_batch = input_batch.size();
+  for (int batch_idx=0; batch_idx<n_batch; batch_idx++) {
+    backward(input_batch[batch_idx].cast<Spikes &>(), post_batch[batch_idx].cast<Spikes const&>(), w, gradient, v_th, tau_mem, tau_syn);
+  }
+}
+
 PYBIND11_MODULE(lif_layer_cpp, m) {
-  m.def("compute_spikes_cpp", &compute_spikes, "w"_a.noconvert(), "times"_a.noconvert(), "sources"_a.noconvert(), "v_th"_a, "tau_mem"_a, "tau_syn"_a, py::return_value_policy::copy)
-  .def("backward_cpp", &backward, "input_times"_a.noconvert(), "input_sources"_a.noconvert(), "post_times"_a.noconvert(), "post_sources"_a.noconvert(), "input_errors"_a.noconvert(), "post_errors"_a.noconvert(), "w"_a.noconvert(), "gradient"_a.noconvert(), "v_th"_a, "tau_mem"_a, "tau_syn"_a);
+  py::class_<Spikes>(m, "Spikes")
+        .def(py::init<Eigen::ArrayXd, Eigen::ArrayXi, Eigen::ArrayXd>(), "times"_a.noconvert(), "sources"_a.noconvert(), "errors"_a.noconvert())
+        .def(py::init<Eigen::ArrayXd, Eigen::ArrayXi>(), "times"_a.noconvert(), "sources"_a.noconvert())
+        .def("set_error", &Spikes::set_error, "spike_idx"_a, "error"_a)
+        .def_readonly("times", &Spikes::times)
+        .def_readonly("sources", &Spikes::sources)
+        .def_readonly("errors", &Spikes::errors)
+        .def_readonly("n_spikes", &Spikes::n_spikes)
+        .def(py::pickle(
+        [](const Spikes &p) { // __getstate__
+            /* Return a tuple that fully encodes the state of the object */
+            return py::make_tuple(p.times, p.sources, p.errors);
+        },
+        [](py::tuple t) { // __setstate__
+            if (t.size() != 3)
+                throw std::runtime_error("Invalid state!");
+            /* Create a new C++ instance */
+            Spikes p(t[0].cast<Eigen::ArrayXd>(), t[1].cast<Eigen::ArrayXi>(), t[2].cast<Eigen::ArrayXd>());
+            return p;
+        }
+    ));
+  m.def("compute_spikes_batch_cpp", &compute_spikes_batch, "w"_a.noconvert(), "batch"_a, "v_th"_a, "tau_mem"_a, "tau_syn"_a)
+  .def("backward_batch_cpp", &backward_batch, "input_batch"_a.noconvert(), "post_batch"_a.noconvert(), "w"_a.noconvert(), "gradient"_a.noconvert(), "v_th"_a, "tau_mem"_a, "tau_syn"_a);
 };

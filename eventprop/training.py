@@ -6,7 +6,7 @@ from typing import NamedTuple, Type
 import pickle
 
 from .optimizer import GradientDescentParameters, Optimizer, Adam
-from .layer import Layer
+from .layer import Layer, SpikeDataset
 
 
 class AbstractTwoLayer(ABC):
@@ -44,7 +44,7 @@ class AbstractTwoLayer(ABC):
         self.loss = self.loss_class(self.loss_parameters)
         self.optimizer = optimizer(self.loss, self.gd_parameters)
         self.load_data()
-        np.random.shuffle(self.train_spikes)
+        self.train_batch.shuffle()
         self._minibatch_idx = 0
 
     @abstractmethod
@@ -69,32 +69,30 @@ class AbstractTwoLayer(ABC):
 
     def _get_minibatch(self):
         if self.gd_parameters.minibatch_size is None:
-            return self.train_spikes
+            return self.train_batch
         else:
-            samples = self.train_spikes[
+            samples = self.train_batch[
                 self._minibatch_idx : self._minibatch_idx
                 + self.gd_parameters.minibatch_size
             ]
             self._minibatch_idx += self.gd_parameters.minibatch_size
-            self._minibatch_idx %= len(self.train_spikes)
+            self._minibatch_idx %= len(self.train_batch)
             return samples
 
-    def _get_results_for_set(self, patterns):
-        accuracies, losses, first_spikes = list(), list(), list()
-        for pattern in patterns:
-            self.loss(self.output_layer(self.hidden_layer(pattern)))
-            accuracies.append(self.loss.get_classification_result(pattern.label))
-            losses.append(self.loss.get_loss(pattern.label))
-            first_spikes.append(self.loss.first_spike_times.copy())
-        logging.debug(f"Got accuracy: {np.mean(accuracies)}.")
+    def _get_results_for_set(self, dataset: SpikeDataset):
+        self.loss(self.output_layer(self.hidden_layer(dataset.spikes)))
+        accuracy = self.loss.get_accuracy(dataset.labels)
+        losses = self.loss.get_losses(dataset.labels)
+        first_spikes = self.loss.first_spike_times.copy()
+        logging.debug(f"Got accuracy: {accuracy}.")
         logging.debug(f"Got loss: {np.mean(losses)}.")
-        return np.nanmean(losses), np.mean(accuracies), first_spikes
+        return np.nanmean(losses), accuracy, first_spikes
 
     def valid(self):
-        return self._get_results_for_set(self.valid_spikes)
+        return self._get_results_for_set(self.valid_batch)
 
     def test(self):
-        return self._get_results_for_set(self.test_spikes)
+        return self._get_results_for_set(self.test_batch)
 
     def train(
         self,
@@ -110,37 +108,31 @@ class AbstractTwoLayer(ABC):
         self.test_first_spikes, self.valid_first_spikes = list(), list()
         for iteration in range(self.gd_parameters.iterations):
             minibatch = self._get_minibatch()
-            batch_losses, batch_classif_results = list(), list()
-            frac_quiet_output, frac_quiet_hidden = list(), list()
-            for pattern in minibatch:
-                self.loss(self.output_layer(self.hidden_layer(pattern)))
-                self.loss.backward(pattern.label)
-                batch_losses.append(self.loss.get_loss(pattern.label))
-                batch_classif_results.append(
-                    self.loss.get_classification_result(pattern.label)
+            self.loss(self.output_layer(self.hidden_layer(minibatch.spikes)))
+            self.loss.backward(minibatch.labels)
+            batch_loss = np.nanmean(self.loss.get_losses(minibatch.labels))
+            batch_accuracy = self.loss.get_accuracy(minibatch.labels)
+            frac_quiet_output = (
+                np.mean(
+                    [
+                        self.output_layer.parameters.n - np.unique(x.sources).size
+                        for x in self.output_layer.post_batch
+                    ]
                 )
-                frac_quiet_output.append(
-                    (
-                        self.output_layer.parameters.n
-                        - np.unique(self.output_layer.post_spikes.sources).size
-                    )
-                    / self.output_layer.parameters.n
-                )
-                frac_quiet_hidden.append(
-                    (
-                        self.hidden_layer.parameters.n
-                        - np.unique(self.hidden_layer.post_spikes.sources).size
-                    )
-                    / self.hidden_layer.parameters.n
-                )
-            frac_quiet_output, frac_quiet_hidden = np.mean(frac_quiet_output), np.mean(
-                frac_quiet_hidden
+                / self.output_layer.parameters.n
             )
-            logging.debug(
-                f"Training loss in iteration {iteration}: {np.nanmean(batch_losses)}"
+            frac_quiet_hidden = (
+                np.mean(
+                    [
+                        self.hidden_layer.parameters.n - np.unique(x.sources).size
+                        for x in self.hidden_layer.post_batch
+                    ]
+                )
+                / self.hidden_layer.parameters.n
             )
+            logging.debug(f"Training loss in iteration {iteration}: {batch_loss}")
             logging.debug(
-                f"Training accuracy in iteration {iteration}: {np.mean(batch_classif_results)}"
+                f"Training accuracy in iteration {iteration}: {batch_accuracy}"
             )
             logging.debug(f"Fraction of quiet hidden neurons: {frac_quiet_hidden}")
             logging.debug(f"Fraction of quiet output neurons: {frac_quiet_output}")
@@ -151,8 +143,8 @@ class AbstractTwoLayer(ABC):
                 if frac_quiet_output > self.weight_increase_threshold_output:
                     logging.debug("Bumping output weights.")
                     self.output_layer.w_in += self.weight_increase_bump
-            self.losses.append(np.nanmean(batch_losses))
-            self.accuracies.append(np.mean(batch_classif_results))
+            self.losses.append(batch_loss)
+            self.accuracies.append(batch_accuracy)
             self.optimizer.step()
             self.optimizer.zero_grad()
             if self.lr_decay_step is not None and iteration > 0:
