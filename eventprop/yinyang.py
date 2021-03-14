@@ -2,7 +2,7 @@ import numpy as np
 import os
 
 from eventprop.layer import SpikeDataset
-from eventprop.lif_layer_cpp import Spikes, SpikesVector
+from eventprop.eventprop_cpp import Spikes, SpikesVector
 from eventprop.lif_layer import LIFLayerParameters
 from eventprop.ttfs_training import TwoLayerTTFS, TTFSCrossEntropyLossParameters
 from eventprop.optimizer import GradientDescentParameters

@@ -1,10 +1,11 @@
 import setuptools
 
 cpp_ext = setuptools.Extension(
-    name="eventprop.lif_layer_cpp",
-    sources=["src/lif_layer_cpp.cpp"],
+    name="eventprop.eventprop_cpp",
+    sources=["src/eventprop_cpp.cpp"],
     include_dirs=["src/pybind11/include", "src/eigen"],
     language="c++",
+    # extra_compile_args=["-std=c++17", "-O0", "-g"]
     extra_compile_args=[
         "-std=c++17",
         "-O3",

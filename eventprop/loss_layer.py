@@ -3,7 +3,7 @@ import numpy as np
 
 from .layer import Layer
 from .li_layer import LILayer, LILayerParameters
-from .lif_layer_cpp import SpikesVector
+from .eventprop_cpp import SpikesVector
 
 # fmt: off
 class TTFSCrossEntropyLossParameters(NamedTuple):
@@ -34,18 +34,19 @@ class TTFSCrossEntropyLoss(Layer):
         self._ran_forward = True
 
     def _find_first_spikes(self):
-        self.first_spike_times = np.full(
-            (len(self.input_batch), self.parameters.n), np.nan
+        self.first_spike_times = np.empty(
+            (len(self.input_batch), self.parameters.n),
         )
         self.first_spike_idxs = np.empty(
             (len(self.input_batch), self.parameters.n), dtype=np.int
         )
         for batch_idx, spikes in enumerate(self.input_batch):
-            for neuron in range(self.parameters.n):
-                idxs = np.argwhere(spikes.sources == neuron)
-                if len(idxs) > 0:
-                    self.first_spike_times[batch_idx, neuron] = spikes.times[idxs[0, 0]]
-                    self.first_spike_idxs[batch_idx, neuron] = idxs[0, 0]
+            self.first_spike_times[batch_idx, :] = self.input_batch[
+                batch_idx
+            ].first_spike_times
+            self.first_spike_idxs[batch_idx, :] = self.input_batch[
+                batch_idx
+            ].first_spike_idxs
 
     def get_losses(self, labels: np.ndarray):
         """

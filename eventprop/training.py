@@ -115,7 +115,7 @@ class AbstractTwoLayer(ABC):
             frac_quiet_output = (
                 np.mean(
                     [
-                        self.output_layer.parameters.n - np.unique(x.sources).size
+                        np.sum(np.isnan(x.first_spike_times))
                         for x in self.output_layer.post_batch
                     ]
                 )
@@ -124,7 +124,7 @@ class AbstractTwoLayer(ABC):
             frac_quiet_hidden = (
                 np.mean(
                     [
-                        self.hidden_layer.parameters.n - np.unique(x.sources).size
+                        np.sum(np.isnan(x.first_spike_times))
                         for x in self.hidden_layer.post_batch
                     ]
                 )

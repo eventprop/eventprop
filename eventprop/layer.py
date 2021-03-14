@@ -4,7 +4,7 @@ from typing import List, Union, Tuple
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
-from .lif_layer_cpp import Spikes, SpikesVector
+from .eventprop_cpp import Spikes, SpikesVector
 
 # fmt: off
 @dataclass

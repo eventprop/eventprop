@@ -3,7 +3,7 @@ import numpy as np
 from numpy.testing import assert_almost_equal
 
 from eventprop.lif_layer import LIFLayer, LIFLayerParameters
-from eventprop.lif_layer_cpp import Spikes, SpikesVector
+from eventprop.eventprop_cpp import Spikes, SpikesVector
 
 
 def get_normalization_factor(tau_mem: float, tau_syn: float) -> float:

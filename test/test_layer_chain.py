@@ -5,7 +5,7 @@ import unittest
 
 from eventprop.loss_layer import TTFSCrossEntropyLoss, TTFSCrossEntropyLossParameters
 from eventprop.lif_layer import LIFLayer, LIFLayerParameters
-from eventprop.lif_layer_cpp import Spikes, SpikesVector
+from eventprop.eventprop_cpp import Spikes, SpikesVector
 from test_lif_layer import get_normalization_factor, get_poisson_spikes
 
 
@@ -18,7 +18,7 @@ class LossLIFLIFChainTest(unittest.TestCase):
         n_batch = 3
         isi = 5e-3
         t_max = 0.2
-        loss_pars = TTFSCrossEntropyLossParameters(n=3)
+        loss_pars = TTFSCrossEntropyLossParameters(n=4)
         upper_pars = LIFLayerParameters(
             n=n_upper, n_in=n_in, tau_mem=20e-3, tau_syn=5e-3
         )
@@ -172,7 +172,7 @@ class LossLIFChainTest(unittest.TestCase):
         parameters = LIFLayerParameters(
             n=n_neurons, n_in=n_in, tau_mem=20e-3, tau_syn=10e-3
         )
-        loss_params = TTFSCrossEntropyLossParameters(n=11, alpha=1)
+        loss_params = TTFSCrossEntropyLossParameters(n=n_neurons, alpha=1)
         norm_factor = get_normalization_factor(parameters.tau_mem, parameters.tau_syn)
         w_in = np.random.normal(0.5, 0.1, size=(n_in, n_neurons)) * norm_factor
         w_eps = 1e-4

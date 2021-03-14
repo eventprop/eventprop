@@ -4,13 +4,13 @@ import logging
 from typing import List, NamedTuple
 
 from .layer import Layer
-from .lif_layer_cpp import (
+from .eventprop_cpp import (
     compute_spikes_batch_cpp,
     backward_batch_cpp,
     Spikes,
     SpikesVector,
 )
-from . import lif_layer_cpp
+from . import eventprop_cpp
 
 
 # fmt: off
