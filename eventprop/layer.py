@@ -4,12 +4,12 @@ from typing import List, Union, Tuple
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
-from .lif_layer_cpp import Spikes
+from .lif_layer_cpp import Spikes, SpikesVector
 
 # fmt: off
 @dataclass
 class SpikeDataset:
-    spikes         : List[Spikes]
+    spikes         : SpikesVector
     labels         : np.ndarray
 
     def __post_init__(self):
@@ -24,7 +24,7 @@ class SpikeDataset:
     def shuffle(self):
         idxs = np.arange(len(self))
         np.random.shuffle(idxs)
-        self.spikes = np.array(self.spikes)[idxs].tolist()
+        self.spikes = SpikesVector(np.array(self.spikes)[idxs].tolist())
         self.labels = self.labels[idxs]
 
 @dataclass
@@ -44,19 +44,19 @@ class Layer(ABC):
 
     def __call__(
         self,
-        arg: Union[List[Spikes], Tuple[List[Spikes], Layer]],
-    ) -> Union[Tuple[Spikes, Layer], Tuple[List[Spikes], Layer]]:
+        arg: Union[SpikesVector, Tuple[SpikesVector, Layer]],
+    ) -> Union[Tuple[Spikes, Layer], Tuple[SpikesVector, Layer]]:
         if isinstance(arg, tuple):
-            if isinstance(arg[0], list) and isinstance(arg[1], Layer):
+            if isinstance(arg[0], SpikesVector) and isinstance(arg[1], Layer):
                 self.ancestor_layer = arg[1]
                 return self.forward(arg[0]), self
             raise RuntimeError("Arguments not recognized.")
-        elif isinstance(arg, list):
+        elif isinstance(arg, SpikesVector):
             return self.forward(arg), self
         raise RuntimeError("Arguments not recognized.")
 
     @abstractmethod
-    def forward(self, input_batch: List[Spikes]):
+    def forward(self, input_batch: SpikesVector):
         self.input_batch = input_batch
 
     @abstractmethod

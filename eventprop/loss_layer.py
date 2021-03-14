@@ -1,8 +1,9 @@
 from typing import NamedTuple, List
 import numpy as np
 
-from .layer import Layer, Spikes
+from .layer import Layer
 from .li_layer import LILayer, LILayerParameters
+from .lif_layer_cpp import SpikesVector
 
 # fmt: off
 class TTFSCrossEntropyLossParameters(NamedTuple):
@@ -25,9 +26,11 @@ class TTFSCrossEntropyLoss(Layer):
         self.first_spike_times = None
         self.first_spike_idxs = None
 
-    def forward(self, input_batch: List[Spikes]):
+    def forward(self, input_batch: SpikesVector):
         super().forward(input_batch)
         self._batch_idxs = np.arange(len(self.input_batch))
+        # Find first spike times
+        self._find_first_spikes()
         self._ran_forward = True
 
     def _find_first_spikes(self):
@@ -50,8 +53,6 @@ class TTFSCrossEntropyLoss(Layer):
         """
         if not self._ran_forward:
             raise RuntimeError("Run forward first!")
-        # Find first spike times
-        self._find_first_spikes()
         t_labels = self.first_spike_times[self._batch_idxs, labels]
         sum0 = np.nansum(np.exp(-self.first_spike_times / self.parameters.tau0), axis=1)
         loss = -np.log(np.exp(-t_labels / self.parameters.tau0) / sum0)
@@ -59,7 +60,6 @@ class TTFSCrossEntropyLoss(Layer):
         return loss
 
     def get_accuracy(self, labels: np.ndarray):
-        self._find_first_spikes()
         t_labels = self.first_spike_times[self._batch_idxs, labels]
         return np.mean(
             np.all(
@@ -74,7 +74,6 @@ class TTFSCrossEntropyLoss(Layer):
     def backward(self, labels: np.ndarray):
         if not self._ran_forward:
             raise RuntimeError("Run forward first!")
-        self._find_first_spikes()
         tau0, tau1, alpha = (
             self.parameters.tau0,
             self.parameters.tau1,

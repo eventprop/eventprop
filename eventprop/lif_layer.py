@@ -8,6 +8,7 @@ from .lif_layer_cpp import (
     compute_spikes_batch_cpp,
     backward_batch_cpp,
     Spikes,
+    SpikesVector,
 )
 from . import lif_layer_cpp
 

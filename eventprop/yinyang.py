@@ -1,7 +1,8 @@
 import numpy as np
 import os
 
-from eventprop.layer import Spikes, SpikeDataset
+from eventprop.layer import SpikeDataset
+from eventprop.lif_layer_cpp import Spikes, SpikesVector
 from eventprop.lif_layer import LIFLayerParameters
 from eventprop.ttfs_training import TwoLayerTTFS, TTFSCrossEntropyLossParameters
 from eventprop.optimizer import GradientDescentParameters
@@ -15,7 +16,7 @@ class YinYangTTFS(TwoLayerTTFS):
     def __init__(
         self,
         gd_parameters: GradientDescentParameters = GradientDescentParameters(
-            minibatch_size=200, iterations=30000, lr=1e-3, gradient_clip=None
+            minibatch_size=200, iterations=100, lr=1e-3, gradient_clip=None
         ),
         hidden_parameters: LIFLayerParameters = LIFLayerParameters(
             n_in=5, n=200, w_mean=2, w_std=1, tau_mem=20e-3, tau_syn=5e-3
@@ -61,7 +62,7 @@ class YinYangTTFS(TwoLayerTTFS):
                 times = times[sort_idxs]
                 sources = sources[sort_idxs]
                 spikes.append(Spikes(times, sources))
-            return SpikeDataset(spikes, labels)
+            return SpikeDataset(SpikesVector(spikes), labels)
 
         self.train_batch, self.test_batch, self.valid_batch = (
             get_batch(train_samples, train_labels),
