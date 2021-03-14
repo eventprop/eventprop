@@ -20,20 +20,20 @@ struct Spikes {
   Eigen::ArrayXd times;
   Eigen::ArrayXi sources;
   Eigen::ArrayXd errors;
+  Eigen::ArrayXd currents;
   std::vector<double> first_spike_times;
   std::vector<int> first_spike_idxs;
   int n_spikes;
 
-  Spikes(Eigen::ArrayXd times, Eigen::ArrayXi sources,
-                  Eigen::ArrayXd errors, std::vector<double> first_spike_times, std::vector<int> first_spike_idxs)
-      : times(times), sources(sources), errors(errors), first_spike_times(first_spike_times), first_spike_idxs(first_spike_idxs), n_spikes(times.size()) {
-  }
   Spikes(Eigen::ArrayXd times, Eigen::ArrayXi sources)
       : times(times), sources(sources),
         errors(Eigen::ArrayXd::Zero(times.size())), first_spike_times(), first_spike_idxs(), n_spikes(times.size())  {}
   Spikes(Eigen::ArrayXd times, Eigen::ArrayXi sources, std::vector<double> first_spike_times, std::vector<int> first_spike_idxs)
       : times(times), sources(sources),
         errors(Eigen::ArrayXd::Zero(times.size())), first_spike_times(first_spike_times), first_spike_idxs(first_spike_idxs), n_spikes(times.size()){}
+  Spikes(Eigen::ArrayXd times, Eigen::ArrayXi sources, Eigen::ArrayXd currents, std::vector<double> first_spike_times, std::vector<int> first_spike_idxs)
+      : times(times), sources(sources),
+        errors(Eigen::ArrayXd::Zero(times.size())), currents(currents), first_spike_times(first_spike_times), first_spike_idxs(first_spike_idxs), n_spikes(times.size()){}
   Spikes() {}
   void set_error(int spike_idx, double error) { errors(spike_idx) = error; }
   void set_time(int spike_idx, double time) { times(spike_idx) = time; }

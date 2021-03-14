@@ -34,16 +34,16 @@ compute_spikes(Eigen::Ref<RowMatrixXd const> w, Spikes const &spikes,
         sum1.row(i).array() + exp_input_mem[i] * w.row(sources[i]).array();
   }
 
-  std::vector<std::vector<double>> post_spikes(n);
+  std::vector<std::vector<std::pair<double, double>>> post_spikes(n);
   // define functions to compute voltage and maxima
   auto v = [&](double t, int target_nrn_idx, int t_pre_idx) {
     auto mem = k_prefactor *
                (sum1(t_pre_idx, target_nrn_idx) * std::exp(-t / tau_mem) -
                 sum0(t_pre_idx, target_nrn_idx) * std::exp(-t / tau_syn));
-    for (auto time : post_spikes.at(target_nrn_idx)) {
-      if (time > t)
+    for (auto spike : post_spikes.at(target_nrn_idx)) {
+      if (spike.first > t)
         break;
-      mem -= v_th * std::exp(-(t - time) / tau_mem);
+      mem -= v_th * std::exp(-(t - spike.first) / tau_mem);
     }
     return mem;
   };
@@ -62,10 +62,10 @@ compute_spikes(Eigen::Ref<RowMatrixXd const> w, Spikes const &spikes,
     double sum0_elem = sum0(t_pre_idx, target_nrn_idx);
     double sum1_elem = sum1(t_pre_idx, target_nrn_idx);
     double t_before = times[t_pre_idx - 1];
-    for (auto time : post_spikes.at(target_nrn_idx)) {
-      if (t_input <= time)
+    for (auto spike : post_spikes.at(target_nrn_idx)) {
+      if (t_input <= spike.first)
         break;
-      sum1_elem += -v_th * std::exp(time / tau_mem);
+      sum1_elem += -v_th * std::exp(spike.first / tau_mem);
     }
     double tmax =
         tmax_prefactor * (tmax_summand + std::log(sum1_elem / sum0_elem));
@@ -84,6 +84,16 @@ compute_spikes(Eigen::Ref<RowMatrixXd const> w, Spikes const &spikes,
         [&](double t) { return v_delta(t, target_nrn_idx, t_pre_idx); }, a, b,
         t, max_iter);
     return (result.first + result.second) / 2;
+  };
+  auto get_i = [&](double t, int target_nrn_idx) {
+  double current = 0;
+  int idx;
+  for (idx = 0; idx < times.size(); idx++) {
+    if (times[idx] > t)
+      break;
+  }
+  current = sum0(idx, target_nrn_idx)*std::exp(-t/tau_syn);
+  return current;
   };
 
 #pragma omp parallel for
@@ -105,16 +115,16 @@ compute_spikes(Eigen::Ref<RowMatrixXd const> w, Spikes const &spikes,
             t_before = 0;
             if (i > 0) {
               t_before = times[i - 1];
-              for (auto time : post_spikes.at(target_nrn_idx)) {
-                if (time > t_pre)
+              for (auto spike : post_spikes.at(target_nrn_idx)) {
+                if (spike.first > t_pre)
                   break;
-                if (t_before < time) {
-                  t_before = time;
+                if (t_before < spike.first) {
+                  t_before = spike.first;
                 }
               }
             }
             t_post = bracket_spike(t_before, tmax, target_nrn_idx, i);
-            post_spikes.at(target_nrn_idx).push_back(t_post);
+            post_spikes.at(target_nrn_idx).push_back({t_post, get_i(t_post, target_nrn_idx)});
             processed_up_to = i;
             break;
           }
@@ -123,7 +133,7 @@ compute_spikes(Eigen::Ref<RowMatrixXd const> w, Spikes const &spikes,
           t_before = times[i - 1];
           tmax = t_pre;
           t_post = bracket_spike(t_before, tmax, target_nrn_idx, i);
-          post_spikes.at(target_nrn_idx).push_back(t_post);
+          post_spikes.at(target_nrn_idx).push_back({t_post, get_i(t_post, target_nrn_idx)});
           processed_up_to = i;
           break;
         }
@@ -136,42 +146,44 @@ compute_spikes(Eigen::Ref<RowMatrixXd const> w, Spikes const &spikes,
   std::vector<double> first_spike_times;
   std::transform(post_spikes.begin(), post_spikes.end(),
                  std::back_inserter(first_spike_times),
-                 [](std::vector<double> spikes) -> double {
+                 [](std::vector<std::pair<double, double>> spikes) -> double {
                    if (spikes.empty()) {
                      return NAN;
                    } else {
-                     return spikes.front();
+                     return spikes.front().first;
                    }
                  });
-  std::vector<std::pair<double, int>> all_post_spikes;
+  std::vector<std::pair<std::pair<double, double>, int>> all_post_spikes;
   for (int nrn_idx = 0; nrn_idx < n; nrn_idx++) {
     std::transform(post_spikes.at(nrn_idx).begin(),
                    post_spikes.at(nrn_idx).end(),
                    std::back_inserter(all_post_spikes),
-                   [&](double t) -> std::pair<double, int> {
-                     return {t, nrn_idx};
+                   [&](std::pair<double, double> spike) -> std::pair<std::pair<double, double>, int> {
+                     return {spike, nrn_idx};
                    });
   }
   std::sort(all_post_spikes.begin(), all_post_spikes.end(),
-            [](std::pair<double, int> a, std::pair<double, int> b) {
-              return a.first < b.first;
+            [](std::pair<std::pair<double, double>, int> a, std::pair<std::pair<double, double>, int> b) {
+              return a.first.first < b.first.first;
             });
   auto all_times_array = Eigen::ArrayXd(all_post_spikes.size());
   auto all_sources_array = Eigen::ArrayXi(all_post_spikes.size());
+  auto all_currents_array = Eigen::ArrayXd(all_post_spikes.size());
   std::vector<int> first_spike_idxs(n);
   #pragma omp parallel for
   for (int nrn_idx=0; nrn_idx<n; nrn_idx++) {
     if (not std::isnan(first_spike_times.at(nrn_idx))) {
-      auto find_result = std::distance(all_post_spikes.begin(), std::find_if(all_post_spikes.begin(), all_post_spikes.end(), [&](std::pair<double, int> spike) -> bool { return spike.second == nrn_idx; }));
+      auto find_result = std::distance(all_post_spikes.begin(), std::find_if(all_post_spikes.begin(), all_post_spikes.end(), [&](std::pair<std::pair<double, double>, int> spike) -> bool { return spike.second == nrn_idx; }));
       first_spike_idxs.at(nrn_idx) = find_result;
     }
   }
 #pragma omp parallel for
   for (int i = 0; i < all_post_spikes.size(); i++) {
-    all_times_array(i) = all_post_spikes.at(i).first;
+    all_times_array(i) = all_post_spikes.at(i).first.first;
     all_sources_array(i) = all_post_spikes.at(i).second;
+    all_currents_array(i) = all_post_spikes.at(i).first.second;
   }
-  return {all_times_array, all_sources_array, first_spike_times, first_spike_idxs};
+  return {all_times_array, all_sources_array, all_currents_array, first_spike_times, first_spike_idxs};
 }
 
 std::vector<Spikes>
@@ -238,16 +250,8 @@ void backward(Spikes &input_spikes, Spikes const &post_spikes,
   auto k_bwd = [&](double t) {
     return k_bwd_prefactor * (std::exp(-t / tau_mem) - std::exp(-t / tau_syn));
   };
-  auto get_i = [&](double t, int target_nrn_idx) {
-    double current = 0;
-    for (int idx = 0; idx < n_input_spikes; idx++) {
-      if (input_spikes.times[idx] > t)
-        break;
-      current += w(input_spikes.sources[idx], target_nrn_idx) *
-                 std::exp(-(t - input_spikes.times[idx]) / tau_syn);
-    }
-    return current;
-  };
+
+  auto w_t = w.transpose();
   for (auto const &spike_idx : sorted_idxs) {
     auto const spike_time = get_time(spike_idx);
     auto const spike_source = get_source(spike_idx);
@@ -263,12 +267,12 @@ void backward(Spikes &input_spikes, Spikes const &post_spikes,
         gradient(spike_source, nrn_idx) += -tau_syn * lambda_i[nrn_idx];
       }
       auto const outbound_signal =
-          (w.row(spike_source).array().transpose() * (lambda_v - lambda_i))
+          (w_t.col(spike_source).array() * (lambda_v - lambda_i))
               .sum();
 #pragma omp critical
       input_spikes.errors[spike_idx.first] += outbound_signal;
     } else {
-      auto const i = get_i(spike_time, spike_source);
+      auto const i = post_spikes.currents[spike_idx.first];
       lambda_i_jumps.at(spike_source)
           .push_back({1 / (i - v_th) *
                           (v_th * lambda_v[spike_source] +

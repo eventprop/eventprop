@@ -16,7 +16,7 @@ class YinYangTTFS(TwoLayerTTFS):
     def __init__(
         self,
         gd_parameters: GradientDescentParameters = GradientDescentParameters(
-            minibatch_size=200, iterations=100, lr=1e-3, gradient_clip=None
+            minibatch_size=200, iterations=30000, lr=1e-3, gradient_clip=None
         ),
         hidden_parameters: LIFLayerParameters = LIFLayerParameters(
             n_in=5, n=200, w_mean=2, w_std=1, tau_mem=20e-3, tau_syn=5e-3
