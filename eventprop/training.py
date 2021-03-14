@@ -112,24 +112,8 @@ class AbstractTwoLayer(ABC):
             self.loss.backward(minibatch.labels)
             batch_loss = np.nanmean(self.loss.get_losses(minibatch.labels))
             batch_accuracy = self.loss.get_accuracy(minibatch.labels)
-            frac_quiet_output = (
-                np.mean(
-                    [
-                        np.sum(np.isnan(x.first_spike_times))
-                        for x in self.output_layer.post_batch
-                    ]
-                )
-                / self.output_layer.parameters.n
-            )
-            frac_quiet_hidden = (
-                np.mean(
-                    [
-                        np.sum(np.isnan(x.first_spike_times))
-                        for x in self.hidden_layer.post_batch
-                    ]
-                )
-                / self.hidden_layer.parameters.n
-            )
+            frac_quiet_output = self.output_layer.dead_fraction
+            frac_quiet_hidden = self.hidden_layer.dead_fraction
             logging.debug(f"Training loss in iteration {iteration}: {batch_loss}")
             logging.debug(
                 f"Training accuracy in iteration {iteration}: {batch_accuracy}"

@@ -48,7 +48,7 @@ class LIFLayer(Layer):
 
     def forward(self, input_batch: List[Spikes]):
         super().forward(input_batch)
-        self.post_batch = compute_spikes_batch_cpp(
+        self.post_batch, self.dead_fraction = compute_spikes_batch_cpp(
             self.w_in,
             self.input_batch,
             self.parameters.v_th,
