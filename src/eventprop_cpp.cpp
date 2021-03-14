@@ -10,14 +10,7 @@
 
 using namespace pybind11::literals;
 
-Spikes
-compute_spikes(Eigen::Ref<RowMatrixXd const> w, Spikes const &spikes,
-               double v_th, double tau_mem, double tau_syn) {
-  // compute constants
-  auto const k_prefactor = tau_syn / (tau_mem - tau_syn);
-  auto const tmax_prefactor = 1 / (1 / tau_mem - 1 / tau_syn);
-  auto const tmax_summand = std::log(tau_syn / tau_mem);
-
+std::pair<RowMatrixXd, RowMatrixXd> compute_sums(Eigen::Ref<RowMatrixXd const> w, Spikes const& spikes, double tau_mem, double tau_syn) {
   auto const &times = spikes.times;
   auto const &sources = spikes.sources;
   Eigen::ArrayXd const exp_input_mem = Eigen::exp(times.array() / tau_mem);
@@ -33,6 +26,22 @@ compute_spikes(Eigen::Ref<RowMatrixXd const> w, Spikes const &spikes,
     sum1.row(i + 1) =
         sum1.row(i).array() + exp_input_mem[i] * w.row(sources[i]).array();
   }
+  return {sum0, sum1};
+}
+
+Spikes
+compute_spikes(Eigen::Ref<RowMatrixXd const> w, Spikes const &spikes,
+               double v_th, double tau_mem, double tau_syn) {
+  // compute constants
+  auto const k_prefactor = tau_syn / (tau_mem - tau_syn);
+  auto const tmax_prefactor = 1 / (1 / tau_mem - 1 / tau_syn);
+  auto const tmax_summand = std::log(tau_syn / tau_mem);
+  auto const &times = spikes.times;
+  auto const &sources = spikes.sources;
+  auto const n_spikes = times.size();
+  auto const n = w.cols();
+  RowMatrixXd sum0, sum1;
+  std::tie(sum0, sum1) = compute_sums(w, spikes, tau_mem, tau_syn);
 
   std::vector<std::vector<std::pair<double, double>>> post_spikes(n);
   // define functions to compute voltage and maxima
@@ -214,7 +223,6 @@ void backward(Spikes &input_spikes, Spikes const &post_spikes,
               Eigen::Ref<RowMatrixXd const> w, Eigen::Ref<RowMatrixXd> gradient,
               double v_th, double tau_mem, double tau_syn) {
   auto const n = gradient.cols();
-  auto const n_input_spikes = input_spikes.times.size();
 
   std::vector<int> input_idxs(input_spikes.times.size());
   std::vector<int> post_idxs(post_spikes.times.size());
@@ -297,7 +305,7 @@ void backward(Spikes &input_spikes, Spikes const &post_spikes,
   }
 }
 
-void backward_batch(std::vector<Spikes> &input_batch,
+void backward_spikes_batch(std::vector<Spikes> &input_batch,
                     std::vector<Spikes> const &post_batch,
                     Eigen::Ref<RowMatrixXd const> w,
                     Eigen::Ref<RowMatrixXd> gradient, double v_th,
@@ -309,6 +317,123 @@ void backward_batch(std::vector<Spikes> &input_batch,
              tau_mem, tau_syn);
   }
 }
+
+
+Maxima compute_maxima(Eigen::Ref<RowMatrixXd const> w, Spikes const& spikes, double tau_mem, double tau_syn) {
+// compute constants
+  auto const k_prefactor = tau_syn / (tau_mem - tau_syn);
+  auto const tmax_prefactor = 1 / (1 / tau_mem - 1 / tau_syn);
+  auto const tmax_summand = std::log(tau_syn / tau_mem);
+  auto const &times = spikes.times;
+  auto const &sources = spikes.sources;
+  auto const n_spikes = times.size();
+  auto const n = w.cols();
+  RowMatrixXd sum0, sum1;
+  std::tie(sum0, sum1) = compute_sums(w, spikes, tau_mem, tau_syn);
+
+  auto v = [&](double t, int target_nrn_idx, int t_pre_idx) {
+    auto mem = k_prefactor *
+               (sum1(t_pre_idx, target_nrn_idx) * std::exp(-t / tau_mem) -
+                sum0(t_pre_idx, target_nrn_idx) * std::exp(-t / tau_syn));
+    return mem;
+  };
+  auto get_tmax = [&](int t_pre_idx, int target_nrn_idx) {
+    double t_input;
+    if (t_pre_idx == 0) {
+      return 0.0;
+    } else if (t_pre_idx == n_spikes) {
+      t_input = inf;
+    } else {
+      t_input = times[t_pre_idx];
+    }
+    double sum0_elem = sum0(t_pre_idx, target_nrn_idx);
+    double sum1_elem = sum1(t_pre_idx, target_nrn_idx);
+    double t_before = times[t_pre_idx - 1];
+    double tmax =
+        tmax_prefactor * (tmax_summand + std::log(sum1_elem / sum0_elem));
+    if (t_before <= tmax && tmax <= t_input) {
+      return tmax;
+    }
+    return inf;
+  };
+
+  Eigen::ArrayXd maxima_values = Eigen::ArrayXd::Zero(n);
+  Eigen::ArrayXd maxima_times = Eigen::ArrayXd(n);
+  std::fill(maxima_times.data(), maxima_times.data()+maxima_times.size(), NAN);
+//#pragma omp parallel for
+  for (int target_nrn_idx = 0; target_nrn_idx < n; target_nrn_idx++) {
+    double tmax, vmax, t_before, t_pre, t_post;
+      for (int i = 0; i < n_spikes + 1; i++) {
+        if (i == n_spikes) {
+          t_pre = inf;
+        } else {
+          t_pre = times[i];
+        }
+        tmax = get_tmax(i, target_nrn_idx);
+        if (tmax != inf) {
+          vmax = v(tmax, target_nrn_idx, i);
+          if (vmax > maxima_values(target_nrn_idx)) {
+            maxima_values(target_nrn_idx) = vmax;
+            maxima_times(target_nrn_idx) = tmax;
+          }
+        }
+        vmax = v(t_pre, target_nrn_idx, i);
+        if (vmax > maxima_values(target_nrn_idx)) {
+            maxima_values(target_nrn_idx) = vmax;
+            maxima_times(target_nrn_idx) = t_pre;
+        }
+      }
+  }
+  return {maxima_times, maxima_values};
+}
+
+void backward(Spikes & input_spikes, Maxima const& maxima, Eigen::Ref<RowMatrixXd const> w, Eigen::Ref<RowMatrixXd> gradient, double tau_mem, double tau_syn) {
+  auto const largest_time = input_spikes.times(Eigen::last);
+  auto const n_maxima = maxima.times.size();
+  auto const k_bwd_prefactor = tau_mem/(tau_mem-tau_syn);
+  auto k_bwd = [&](double t) { return k_bwd_prefactor*(std::exp(-t/tau_mem)-std::exp(-t/tau_syn));};
+  for (int spike_idx = input_spikes.n_spikes-1; spike_idx >=0; spike_idx--) {
+    auto const t_bwd = largest_time - input_spikes.times(spike_idx);
+    for (int max_idx = 0; max_idx < n_maxima; max_idx++) {
+      if (std::isnan(maxima.times(max_idx))) {
+        continue;
+      }
+      auto const t_vmax_bwd = largest_time - maxima.times(max_idx);
+      if (t_vmax_bwd > t_bwd) {
+        continue;
+      }
+      auto const lambda_v = -std::exp(-(t_bwd-t_vmax_bwd)/tau_mem)*maxima.errors(max_idx)/tau_mem;
+      auto const lambda_i = -k_bwd(t_bwd-t_vmax_bwd)*maxima.errors(max_idx)/tau_mem;
+      #pragma omp critical
+      {
+        gradient(input_spikes.sources(spike_idx), max_idx) += -tau_syn*lambda_i;
+        input_spikes.errors[spike_idx] += w(input_spikes.sources(spike_idx), max_idx) * (lambda_v - lambda_i);
+      }
+    }
+  }
+}
+
+std::vector<Maxima>
+compute_maxima_batch(Eigen::Ref<RowMatrixXd const> w, std::vector<Spikes> const& batch, double tau_mem, double tau_syn) {
+  auto result = std::vector<Maxima>(batch.size());
+  //#pragma omp parallel for
+    for (int batch_idx = 0; batch_idx < batch.size(); batch_idx++) {
+    result.at(batch_idx) =
+        compute_maxima(w, batch[batch_idx], tau_mem, tau_syn);
+  }
+  return result;
+}
+
+void
+backward_maxima_batch(std::vector<Spikes> &input_batch, std::vector<Maxima> const& maxima, Eigen::Ref<RowMatrixXd const> w, Eigen::Ref<RowMatrixXd> gradient, double tau_mem, double tau_syn) {
+  auto const n_batch = input_batch.size();
+//#pragma omp parallel for
+  for (int batch_idx = 0; batch_idx < n_batch; batch_idx++) {
+    backward(input_batch[batch_idx], maxima[batch_idx], w, gradient,
+             tau_mem, tau_syn);
+  }
+}
+
 
 PYBIND11_MODULE(eventprop_cpp, m) {
   py::class_<Spikes>(m, "Spikes")
@@ -336,10 +461,23 @@ PYBIND11_MODULE(eventprop_cpp, m) {
             Spikes p(t[0].cast<Eigen::ArrayXd>(), t[1].cast<Eigen::ArrayXi>());
             return p;
           }));
+  py::class_<Maxima>(m, "Maxima")
+    .def(py::init<Eigen::ArrayXd, Eigen::ArrayXd, Eigen::ArrayXd>(), "times"_a, "values"_a, "errors"_a)
+    .def(py::init<Eigen::ArrayXd, Eigen::ArrayXd>(), "times"_a, "values"_a)
+    .def("set_error", &Maxima::set_error, "nrn_idx"_a, "error"_a)
+    .def_readonly("times", &Maxima::times)
+    .def_readonly("values", &Maxima::values)
+    .def_readonly("errors", &Maxima::errors);
   py::bind_vector<std::vector<Spikes>>(m, "SpikesVector");
+  py::bind_vector<std::vector<Maxima>>(m, "MaximaVector");
   m.def("compute_spikes_batch_cpp", &compute_spikes_batch, "w"_a.noconvert(),
         "batch"_a, "v_th"_a, "tau_mem"_a, "tau_syn"_a)
-      .def("backward_batch_cpp", &backward_batch, "input_batch"_a.noconvert(),
+      .def("backward_spikes_batch_cpp", &backward_spikes_batch, "input_batch"_a.noconvert(),
            "post_batch"_a.noconvert(), "w"_a.noconvert(),
-           "gradient"_a.noconvert(), "v_th"_a, "tau_mem"_a, "tau_syn"_a);
+           "gradient"_a.noconvert(), "v_th"_a, "tau_mem"_a, "tau_syn"_a)
+  .def("compute_maxima_batch_cpp", &compute_maxima_batch, "w"_a.noconvert(),
+        "batch"_a, "tau_mem"_a, "tau_syn"_a)
+      .def("backward_maxima_batch_cpp", &backward_maxima_batch, "input_batch"_a.noconvert(),
+           "maxima"_a.noconvert(), "w"_a.noconvert(),
+           "gradient"_a.noconvert(), "tau_mem"_a, "tau_syn"_a);
 };

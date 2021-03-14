@@ -6,7 +6,7 @@ from typing import List, NamedTuple
 from .layer import Layer
 from .eventprop_cpp import (
     compute_spikes_batch_cpp,
-    backward_batch_cpp,
+    backward_spikes_batch_cpp,
     Spikes,
     SpikesVector,
 )
@@ -46,7 +46,7 @@ class LIFLayer(Layer):
         self.post_batch = None
         self.gradient = np.zeros_like(self.w_in)
 
-    def forward(self, input_batch: List[Spikes]):
+    def forward(self, input_batch: SpikesVector):
         super().forward(input_batch)
         self.post_batch, self.dead_fraction = compute_spikes_batch_cpp(
             self.w_in,
@@ -55,11 +55,11 @@ class LIFLayer(Layer):
             self.parameters.tau_mem,
             self.parameters.tau_syn,
         )
-        self._ran_forward_batch = True
+        self._ran_forward = True
         return self.post_batch
 
     def backward(self):
-        backward_batch_cpp(
+        backward_spikes_batch_cpp(
             self.input_batch,
             self.post_batch,
             self.w_in,

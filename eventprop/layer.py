@@ -26,12 +26,6 @@ class SpikeDataset:
         np.random.shuffle(idxs)
         self.spikes = SpikesVector(np.array(self.spikes)[idxs].tolist())
         self.labels = self.labels[idxs]
-
-@dataclass
-class VMax:
-    time           : float
-    value          : float
-    error          : float
 # fmt: on
 
 

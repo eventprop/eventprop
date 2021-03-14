@@ -4,15 +4,11 @@ from numpy.testing import assert_almost_equal
 from numpy.testing._private.utils import assert_equal
 
 from eventprop.li_layer import LILayer, LILayerParameters
-from eventprop.layer import Spikes
+from eventprop.eventprop_cpp import Spikes, SpikesVector, Maxima, MaximaVector
 from test_lif_layer import get_poisson_spikes, get_normalization_factor
 
 
 class LILayerTest(unittest.TestCase):
-    def __init__(self, *args, code="python", **kwargs):
-        super().__init__(*args, **kwargs)
-        self.code = code
-
     def test_constructor(self):
         parameters = LILayerParameters(n=100, n_in=3)
         w_in = np.ones((3, 100))
@@ -31,21 +27,42 @@ class LILayerTest(unittest.TestCase):
             * np.log(parameters.tau_mem / parameters.tau_syn)
         )
         w_in = np.eye(n_in, n_neurons) * norm_factor
-        input_spikes = Spikes(np.full(n_in, 0.1), np.arange(n_in))
+        input_spikes = SpikesVector(
+            [
+                Spikes(
+                    np.full(n_in, 0.1, dtype=np.float64),
+                    np.arange(n_in, dtype=np.int32),
+                )
+            ]
+        )
         layer = LILayer(parameters, w_in)
-        layer.forward(input_spikes, code=self.code)
-        for vmax in layer.vmax[:n_in]:
-            assert_almost_equal(vmax.value, 1.0)
-            assert_almost_equal(vmax.time, 0.1 + t_max)
-            assert_equal(vmax.error, 0)
-        for vmax in layer.vmax[n_in:]:
-            assert_almost_equal(vmax.value, 0)
-            assert vmax.time is None
-            assert_equal(vmax.error, 0)
+        layer.forward(input_spikes)
+        for max_idx in range(n_in):
+            assert_almost_equal(layer.maxima_batch[0].values[max_idx], 1.0)
+            assert_almost_equal(layer.maxima_batch[0].times[max_idx], 0.1 + t_max)
+            assert_equal(layer.maxima_batch[0].errors[max_idx], 0)
+        for max_idx in range(n_in, n_neurons):
+            assert_almost_equal(layer.maxima_batch[0].values[max_idx], 0)
+            assert np.isnan(layer.maxima_batch[0].times[max_idx])
+            assert_equal(layer.maxima_batch[0].errors[max_idx], 0)
 
-        input_spikes = Spikes(
-            np.concatenate([np.full(n_in, 0.05), np.full(n_in, 0.1)]),
-            np.concatenate([np.arange(n_in), np.arange(n_in)]),
+        input_spikes = SpikesVector(
+            [
+                Spikes(
+                    np.concatenate(
+                        [
+                            np.full(n_in, 0.05, dtype=np.float64),
+                            np.full(n_in, 0.1, dtype=np.float64),
+                        ]
+                    ),
+                    np.concatenate(
+                        [
+                            np.arange(n_in, dtype=np.int32),
+                            np.arange(n_in, dtype=np.int32),
+                        ]
+                    ),
+                )
+            ]
         )
         t_max = (
             (parameters.tau_mem * parameters.tau_syn)
@@ -73,14 +90,15 @@ class LILayerTest(unittest.TestCase):
         )
         target_v_max = k(t_max - 0.05) + k(t_max - 0.1)
         layer = LILayer(parameters, w_in)
-        layer.forward(input_spikes, code=self.code)
-        for vmax in layer.vmax[:n_in]:
-            assert_almost_equal(vmax.value, target_v_max)
-            assert_almost_equal(vmax.time, t_max)
-            assert_equal(vmax.error, 0)
-        for vmax in layer.vmax[n_in:]:
-            assert vmax.time is None
-            assert_equal(vmax.error, 0)
+        layer.forward(input_spikes)
+        for max_idx in range(n_in):
+            assert_almost_equal(layer.maxima_batch[0].values[max_idx], target_v_max)
+            assert_almost_equal(layer.maxima_batch[0].times[max_idx], t_max)
+            assert_equal(layer.maxima_batch[0].errors[max_idx], 0)
+        for max_idx in range(n_in, n_neurons):
+            assert_equal(layer.maxima_batch[0].values[max_idx], 0)
+            assert np.isnan(layer.maxima_batch[0].times[max_idx])
+            assert_equal(layer.maxima_batch[0].errors[max_idx], 0)
 
     def test_backward(self):
         n_in = 5
@@ -90,23 +108,39 @@ class LILayerTest(unittest.TestCase):
         )
         norm_factor = get_normalization_factor(parameters.tau_mem, parameters.tau_syn)
         w_in = np.eye(n_in, n_neurons) * norm_factor
-        input_spikes = Spikes(np.full(n_in, 0.1), np.arange(n_in))
+        input_spikes = SpikesVector(
+            [
+                Spikes(
+                    np.full(n_in, 0.1, dtype=np.float64),
+                    np.arange(n_in, dtype=np.int32),
+                )
+            ]
+        )
         layer = LILayer(parameters, w_in)
-        layer.forward(input_spikes, code=self.code)
-        layer.backward(code=self.code)
+        layer.forward(input_spikes)
+        layer.backward()
         assert np.all(layer.gradient == 0)
-        assert np.all(input_spikes.errors == 0)
+        assert np.all(layer.input_batch[0].errors == 0)
 
         w_in = np.eye(n_in, n_neurons) * 1.0001 * norm_factor
-        input_spikes = Spikes(np.full(n_in, 0.1), np.arange(n_in))
+        input_spikes = SpikesVector(
+            [
+                Spikes(
+                    np.full(n_in, 0.1, dtype=np.float64),
+                    np.arange(n_in, dtype=np.int32),
+                )
+            ]
+        )
         layer = LILayer(parameters, w_in)
-        layer.forward(input_spikes, code=self.code)
+        layer.forward(input_spikes)
 
         grad_analytical = 1 / norm_factor
-        for vmax in layer.vmax:
-            vmax.error = 1
-        layer.backward(code=self.code)
-        assert_almost_equal(input_spikes.errors, np.zeros_like(input_spikes.errors))
+        for max_idx in range(n_neurons):
+            layer.maxima_batch[0].set_error(max_idx, 1.0)
+        layer.backward()
+        assert_almost_equal(
+            layer.input_batch[0].errors, np.zeros_like(layer.input_batch[0].errors)
+        )
         for grad in layer.gradient[:, 0]:
             assert_almost_equal(grad, grad_analytical)
 
@@ -114,35 +148,39 @@ class LILayerTest(unittest.TestCase):
         np.random.seed(0)
         n_in = 5
         n_neurons = 10
+        n_batch = 5
         isi = 10e-3
         t_max = 0.1
         parameters = LILayerParameters(
             n=n_neurons, n_in=n_in, tau_mem=20e-3, tau_syn=5e-3
         )
         w_in = np.random.normal(1, 1, size=(n_in, n_neurons))
-        w_eps = 1e-8
-        input_spikes = get_poisson_spikes(isi, t_max, n_in)
+        w_eps = 1e-7
+        input_spikes = SpikesVector(
+            [get_poisson_spikes(isi, t_max, n_in) for _ in range(n_batch)]
+        )
         grad_numerical = np.zeros_like(w_in)
         for syn_idx in range(n_in):
             w_plus = np.copy(w_in)
             w_plus[syn_idx, :] += w_eps
             layer = LILayer(parameters, w_plus)
-            layer.forward(input_spikes, code=self.code)
-            v_plus = np.array([vmax.value for vmax in layer.vmax])
+            layer.forward(input_spikes)
+            v_plus = np.sum([x.values for x in layer.maxima_batch], axis=0)
 
             w_minus = np.copy(w_in)
             w_minus[syn_idx, :] -= w_eps
             layer = LILayer(parameters, w_minus)
-            layer.forward(input_spikes, code=self.code)
-            v_minus = np.array([vmax.value for vmax in layer.vmax])
+            layer.forward(input_spikes)
+            v_minus = np.sum([x.values for x in layer.maxima_batch], axis=0)
 
             grad_numerical[syn_idx, :] = (v_plus - v_minus) / (2 * w_eps)
 
         layer = LILayer(parameters, w_in)
-        layer.forward(input_spikes, code=self.code)
-        for vmax in layer.vmax:
-            vmax.error = 1.0
-        layer.backward(code=self.code)
+        layer.forward(input_spikes)
+        for batch_idx in range(n_batch):
+            for max_idx in range(n_neurons):
+                layer.maxima_batch[batch_idx].set_error(max_idx, 1.0)
+        layer.backward()
         assert_almost_equal(grad_numerical, layer.gradient)
 
     def test_backward_vs_numerical_single_post_spike(self):
@@ -158,42 +196,50 @@ class LILayerTest(unittest.TestCase):
         w_save = 1.2 * norm_factor
         w_in = np.zeros((n_in, n_neurons))
         w_in[0, 0] = w_save
-        input_spikes = Spikes(np.array([0.1]), np.array([0]))
+        input_spikes = SpikesVector(
+            [Spikes(np.array([0.1], dtype=np.float64), np.array([0], dtype=np.int32))]
+        )
         w_in[0, 0] = w_save + w_eps
         layer = LILayer(parameters, w_in)
-        layer.forward(input_spikes, code=self.code)
-        v_plus = layer.vmax[0].value
+        layer.forward(input_spikes)
+        v_plus = layer.maxima_batch[0].values[0]
         w_in[0, 0] = w_save - w_eps
         layer = LILayer(parameters, w_in)
-        layer.forward(input_spikes, code=self.code)
-        v_minus = layer.vmax[0].value
+        layer.forward(input_spikes)
+        v_minus = layer.maxima_batch[0].values[0]
         w_in[0, 0] = w_save
         layer = LILayer(parameters, w_in)
-        layer.forward(input_spikes, code=self.code)
-        layer.vmax[0].error = 1
-        layer.backward(code=self.code)
+        layer.forward(input_spikes)
+        layer.maxima_batch[0].set_error(0, 1)
+        layer.backward()
         grad_numerical = (v_plus - v_minus) / (2 * w_eps)
         assert_almost_equal(grad_numerical, layer.gradient[0, 0])
-        assert_almost_equal(input_spikes.errors, np.zeros_like(input_spikes.errors))
 
         # Test with two pre spikes
         w_save = 0.6 * norm_factor
         w_in = np.zeros((n_in, n_neurons))
         w_in[0, 0] = w_save
-        input_spikes = Spikes(np.array([0.1, 0.105]), np.array([0, 0]))
+        input_spikes = SpikesVector(
+            [
+                Spikes(
+                    np.array([0.1, 0.105], dtype=np.float64),
+                    np.array([0, 0], dtype=np.int32),
+                )
+            ]
+        )
         w_in[0, 0] = w_save + w_eps
         layer = LILayer(parameters, w_in)
-        layer.forward(input_spikes, code=self.code)
-        v_plus = layer.vmax[0].value
+        layer.forward(input_spikes)
+        v_plus = layer.maxima_batch[0].values[0]
         w_in[0, 0] = w_save - w_eps
         layer = LILayer(parameters, w_in)
-        layer.forward(input_spikes, code=self.code)
-        v_minus = layer.vmax[0].value
+        layer.forward(input_spikes)
+        v_minus = layer.maxima_batch[0].values[0]
         w_in[0, 0] = w_save
         layer = LILayer(parameters, w_in)
-        layer.forward(input_spikes, code=self.code)
-        layer.vmax[0].error = 1
-        layer.backward(code=self.code)
+        layer.forward(input_spikes)
+        layer.maxima_batch[0].set_error(0, 1.0)
+        layer.backward()
         grad_numerical = (v_plus - v_minus) / (2 * w_eps)
         assert_almost_equal(grad_numerical, layer.gradient[0, 0])
 
@@ -209,63 +255,63 @@ class LILayerTest(unittest.TestCase):
         w_save = 1.9 * norm_factor
         w_in = np.zeros((n_in, n_neurons))
         w_in[0, 0] = w_save
-        input_spikes = Spikes(np.array([0.1]), np.array([0]))
+        input_spikes = SpikesVector(
+            [Spikes(np.array([0.1], dtype=np.float64), np.array([0], dtype=np.int32))]
+        )
         # Test gradient for first post spike
         w_in[0, 0] = w_save + w_eps
         layer = LILayer(parameters, w_in)
-        layer.forward(input_spikes, code=self.code)
-        v_plus = layer.vmax[0].value
+        layer.forward(input_spikes)
+        v_plus = layer.maxima_batch[0].values[0]
         w_in[0, 0] = w_save - w_eps
         layer = LILayer(parameters, w_in)
-        layer.forward(input_spikes, code=self.code)
-        v_minus = layer.vmax[0].value
+        layer.forward(input_spikes)
+        v_minus = layer.maxima_batch[0].values[0]
         w_in[0, 0] = w_save
         layer = LILayer(parameters, w_in)
-        layer.forward(input_spikes, code=self.code)
-        layer.vmax[0].error = 1
-        layer.vmax[1].error = 0
-        layer.backward(code=self.code)
+        layer.forward(input_spikes)
+        layer.maxima_batch[0].set_error(0, 1)
+        layer.maxima_batch[0].set_error(1, 0)
+        layer.backward()
         grad_numerical = (v_plus - v_minus) / (2 * w_eps)
         assert_almost_equal(grad_numerical, layer.gradient[0, 0])
-        assert_almost_equal(input_spikes.errors, np.zeros_like(input_spikes.errors))
+        np.all(layer.input_batch[0].errors == 0)
 
-        # Test gradient for second post spike
+        w_in[0, 1] = w_save + w_eps
+        layer = LILayer(parameters, w_in)
+        layer.forward(input_spikes)
+        v_plus = layer.maxima_batch[0].values[1]
+        w_in[0, 1] = w_save - w_eps
+        layer = LILayer(parameters, w_in)
+        layer.forward(input_spikes)
+        v_minus = layer.maxima_batch[0].values[1]
+        w_in[0, 1] = w_save
+        layer = LILayer(parameters, w_in)
+        layer.forward(input_spikes)
+        layer.maxima_batch[0].set_error(0, 0)
+        layer.maxima_batch[0].set_error(1, 1)
+        layer.backward()
+        grad_numerical = (v_plus - v_minus) / (2 * w_eps)
+        assert_almost_equal(grad_numerical, layer.gradient[0, 1])
+        np.all(layer.input_batch[0].errors == 0)
+
         w_in[0, 0] = w_save + w_eps
         layer = LILayer(parameters, w_in)
-        layer.forward(input_spikes, code=self.code)
-        v_plus = layer.vmax[0].value
+        layer.forward(input_spikes)
+        v_plus = layer.maxima_batch[0].values[0]
         w_in[0, 0] = w_save - w_eps
         layer = LILayer(parameters, w_in)
-        layer.forward(input_spikes, code=self.code)
-        v_minus = layer.vmax[0].value
+        layer.forward(input_spikes)
+        v_minus = layer.maxima_batch[0].values[0]
         w_in[0, 0] = w_save
         layer = LILayer(parameters, w_in)
-        layer.forward(input_spikes, code=self.code)
-        layer.vmax[1].error = 0
-        layer.vmax[0].error = 1
-        layer.backward(code=self.code)
+        layer.forward(input_spikes)
+        layer.maxima_batch[0].set_error(0, 1)
+        layer.maxima_batch[0].set_error(1, 1)
+        layer.backward()
         grad_numerical = (v_plus - v_minus) / (2 * w_eps)
         assert_almost_equal(grad_numerical, layer.gradient[0, 0])
-        assert_almost_equal(input_spikes.errors, np.zeros_like(input_spikes.errors))
-
-        # Test gradient for both post spikes
-        w_in[0, 0] = w_save + w_eps
-        layer = LILayer(parameters, w_in)
-        layer.forward(input_spikes, code=self.code)
-        v_plus = layer.vmax[0].value + layer.vmax[1].value
-        w_in[0, 0] = w_save - w_eps
-        layer = LILayer(parameters, w_in)
-        layer.forward(input_spikes, code=self.code)
-        v_minus = layer.vmax[0].value + layer.vmax[1].value
-        w_in[0, 0] = w_save
-        layer = LILayer(parameters, w_in)
-        layer.forward(input_spikes, code=self.code)
-        layer.vmax[1].error = 1
-        layer.vmax[0].error = 1
-        layer.backward(code=self.code)
-        grad_numerical = (v_plus - v_minus) / (2 * w_eps)
-        assert_almost_equal(grad_numerical, layer.gradient[0, 0])
-        assert_almost_equal(input_spikes.errors, np.zeros_like(input_spikes.errors))
+        np.all(layer.input_batch[0].errors == 0)
 
 
 if __name__ == "__main__":

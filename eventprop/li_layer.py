@@ -1,7 +1,15 @@
 import numpy as np
 from typing import NamedTuple, List, Iterable
 
-from .layer import Layer, VMax, Spikes
+from .layer import Layer
+from .eventprop_cpp import (
+    Spikes,
+    Maxima,
+    MaximaVector,
+    SpikesVector,
+    compute_maxima_batch_cpp,
+    backward_maxima_batch_cpp,
+)
 
 # fmt: off
 class LILayerParameters(NamedTuple):
@@ -31,8 +39,7 @@ class LILayer(Layer):
             )
         else:
             self.w_in = None
-        self.input_spikes = None
-        self.vmax = None
+        self.input_batch = None
         self.gradient = np.zeros_like(self.w_in)
         self._k_prefactor = self.parameters.tau_syn / (
             self.parameters.tau_mem - self.parameters.tau_syn
@@ -110,14 +117,34 @@ class LILayer(Layer):
         )
         return v
 
-    def forward(self, input_spikes: Spikes, code: str = "python") -> np.ndarray:
-        super().forward(input_spikes)
-        if code == "python":
-            self.compute_vmax_python(input_spikes)
-            return self.vmax
-        elif code == "cpp":
-            raise NotImplementedError()
-        raise RuntimeError(f"Code not recognized: {code}.")
+    def forward(self, input_batch: SpikesVector):
+        super().forward(input_batch)
+        self.maxima_batch = compute_maxima_batch_cpp(
+            self.w_in, input_batch, self.parameters.tau_mem, self.parameters.tau_syn
+        )
+        self._ran_forward = True
+        return self.maxima_batch
+
+    def backward(self):
+        backward_maxima_batch_cpp(
+            self.input_batch,
+            self.maxima_batch,
+            self.w_in,
+            self.gradient,
+            self.parameters.tau_mem,
+            self.parameters.tau_syn,
+        )
+        self._ran_backward = True
+        super().backward()
+
+    # def forward(self, input_spikes: Spikes, code: str = "python") -> np.ndarray:
+    #    super().forward(input_spikes)
+    #    if code == "python":
+    #        self.compute_vmax_python(input_spikes)
+    #        return self.vmax
+    #    elif code == "cpp":
+    #        raise NotImplementedError()
+    #    raise RuntimeError(f"Code not recognized: {code}.")
 
     def compute_vmax_python(self, input_spikes: Spikes):
         self._compute_exponentiated_times()
@@ -127,43 +154,43 @@ class LILayer(Layer):
             self.vmax.append(self.get_vmax_for_neuron(target_nrn_idx))
         self._ran_forward = True
 
-    def backward(self, code: str = "python"):
-        if not self._ran_forward:
-            raise RuntimeError("Run forward first!")
-        if code == "cpp":
-            raise NotImplementedError()
-        else:
-            # iterate pre spikes in reverse order
-            largest_time = self.input_spikes.times[-1]
-            all_spike_sort_idxs = np.arange(self.input_spikes.n_spikes)[::-1]
-            for spike_idx in all_spike_sort_idxs:
-                t_bwd = largest_time - self.input_spikes.times[spike_idx]
-                # pre spike -> gradient sample
-                for idx, vmax in enumerate(self.vmax):
-                    if vmax.time is None:
-                        continue
-                    t_vmax_bwd = largest_time - vmax.time
-                    if t_vmax_bwd > t_bwd:
-                        continue
-                    lambda_v = (
-                        -np.exp(-(t_bwd - t_vmax_bwd) / self.parameters.tau_mem)
-                        * vmax.error
-                        / self.parameters.tau_mem
-                    )
-                    lambda_i = (
-                        -self._k_bwd(t_bwd - t_vmax_bwd)
-                        * vmax.error
-                        / self.parameters.tau_mem
-                    )
-                    self.gradient[self.input_spikes.sources[spike_idx], idx] += (
-                        -self.parameters.tau_syn * lambda_i
-                    )
-                    outbound_signal = self.w_in[
-                        self.input_spikes.sources[spike_idx], idx
-                    ] * (lambda_v - lambda_i)
-                    self.input_spikes.errors[spike_idx] += outbound_signal
-        self._ran_backward = True
-        super().backward()
+    # def backward(self, code: str = "python"):
+    #    if not self._ran_forward:
+    #        raise RuntimeError("Run forward first!")
+    #    if code == "cpp":
+    #        raise NotImplementedError()
+    #    else:
+    #        # iterate pre spikes in reverse order
+    #        largest_time = self.input_spikes.times[-1]
+    #        all_spike_sort_idxs = np.arange(self.input_spikes.n_spikes)[::-1]
+    #        for spike_idx in all_spike_sort_idxs:
+    #            t_bwd = largest_time - self.input_spikes.times[spike_idx]
+    #            # pre spike -> gradient sample
+    #            for idx, vmax in enumerate(self.vmax):
+    #                if vmax.time is None:
+    #                    continue
+    #                t_vmax_bwd = largest_time - vmax.time
+    #                if t_vmax_bwd > t_bwd:
+    #                    continue
+    #                lambda_v = (
+    #                    -np.exp(-(t_bwd - t_vmax_bwd) / self.parameters.tau_mem)
+    #                    * vmax.error
+    #                    / self.parameters.tau_mem
+    #                )
+    #                lambda_i = (
+    #                    -self._k_bwd(t_bwd - t_vmax_bwd)
+    #                    * vmax.error
+    #                    / self.parameters.tau_mem
+    #                )
+    #                self.gradient[self.input_spikes.sources[spike_idx], idx] += (
+    #                    -self.parameters.tau_syn * lambda_i
+    #                )
+    #                outbound_signal = self.w_in[
+    #                    self.input_spikes.sources[spike_idx], idx
+    #                ] * (lambda_v - lambda_i)
+    #                self.input_spikes.errors[spike_idx] += outbound_signal
+    #    self._ran_backward = True
+    #    super().backward()
 
     def get_vmax_for_neuron(self, target_nrn_idx: int):
         if self.w_in is None:
@@ -176,7 +203,6 @@ class LILayer(Layer):
                 spike_time = self.input_spikes.times[spike_idx]
             x = self._tmax(spike_idx, target_nrn_idx)
             if x is not None:
-                # check for post spike
                 vmax = self._v(x, target_nrn_idx, spike_idx)
                 if vmax > total_vmax.value:
                     total_vmax.time = x
@@ -208,4 +234,4 @@ class LILayer(Layer):
             raise NotImplementedError()
 
     def zero_grad(self):
-        self.gradient = np.zeros_like(self.gradient)
+        self.gradient[:] = 0
