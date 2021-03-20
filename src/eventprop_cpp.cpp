@@ -1,5 +1,8 @@
 #include "eventprop_cpp.h"
 
+#ifndef __APPLE__
+#include <execution>
+#endif
 #include <Eigen/Core>
 #include <algorithm>
 #include <boost/format.hpp>
@@ -171,10 +174,17 @@ compute_spikes(Eigen::Ref<RowMatrixXd const> w, Spikes const &spikes,
                      return {spike, nrn_idx};
                    });
   }
+  #ifdef __APPLE__
   std::sort(all_post_spikes.begin(), all_post_spikes.end(),
             [](std::pair<std::pair<double, double>, int> a, std::pair<std::pair<double, double>, int> b) {
               return a.first.first < b.first.first;
             });
+  #else
+  std::sort(std::execution::par_unseq, all_post_spikes.begin(), all_post_spikes.end(),
+            [](std::pair<std::pair<double, double>, int> a, std::pair<std::pair<double, double>, int> b) {
+              return a.first.first < b.first.first;
+            });
+  #endif
   auto all_times_array = Eigen::ArrayXd(all_post_spikes.size());
   auto all_sources_array = Eigen::ArrayXi(all_post_spikes.size());
   auto all_currents_array = Eigen::ArrayXd(all_post_spikes.size());
@@ -182,7 +192,12 @@ compute_spikes(Eigen::Ref<RowMatrixXd const> w, Spikes const &spikes,
   #pragma omp parallel for
   for (int nrn_idx=0; nrn_idx<n; nrn_idx++) {
     if (not std::isnan(first_spike_times.at(nrn_idx))) {
+      #ifdef __APPLE__
       auto find_result = std::distance(all_post_spikes.begin(), std::find_if(all_post_spikes.begin(), all_post_spikes.end(), [&](std::pair<std::pair<double, double>, int> spike) -> bool { return spike.second == nrn_idx; }));
+      #else
+      auto find_result = std::distance(all_post_spikes.begin(), std::find_if(std::execution::par_unseq, all_post_spikes.begin(), all_post_spikes.end(), [&](std::pair<std::pair<double, double>, int> spike) -> bool { return spike.second == nrn_idx; }));
+      #endif
+
       first_spike_idxs.at(nrn_idx) = find_result;
     }
   }
