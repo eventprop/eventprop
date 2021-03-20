@@ -219,11 +219,13 @@ compute_spikes_batch(Eigen::Ref<RowMatrixXd const> w,
   return {result, avg_dead_fraction};
 }
 
-void backward(Spikes &input_spikes, Spikes const &post_spikes,
-              Eigen::Ref<RowMatrixXd const> w, Eigen::Ref<RowMatrixXd> gradient,
+std::pair<RowMatrixXd, Eigen::ArrayXd> backward(Spikes &input_spikes, Spikes const &post_spikes,
+              Eigen::Ref<RowMatrixXd const> w,
               double v_th, double tau_mem, double tau_syn) {
+  RowMatrixXd gradient = RowMatrixXd::Zero(w.rows(), w.cols());
+  Eigen::ArrayXd spike_errors = Eigen::ArrayXd::Zero(input_spikes.n_spikes);
   if (post_spikes.times.size() == 0) {
-    return;
+    return {gradient, spike_errors};
   }
   auto const n = gradient.cols();
 
@@ -285,13 +287,11 @@ void backward(Spikes &input_spikes, Spikes const &post_spikes,
         for (auto const &jump : lambda_i_jumps.at(nrn_idx)) {
           lambda_i[nrn_idx] += jump.first * k_bwd(t_bwd - jump.second);
         }
-#pragma omp critical
         gradient(spike_source, nrn_idx) += -tau_syn * lambda_i[nrn_idx];
       }
       auto const outbound_signal =
           (w_t.col(spike_source).array() * (lambda_v - lambda_i))
               .sum();
-#pragma omp critical
       input_spikes.errors[spike_idx.first] += outbound_signal;
     } else {
       auto const i = post_spikes.currents[spike_idx.first];
@@ -306,6 +306,7 @@ void backward(Spikes &input_spikes, Spikes const &post_spikes,
     }
     previous_t = t_bwd;
   }
+  return {gradient, spike_errors};
 }
 
 void backward_spikes_batch(std::vector<Spikes> &input_batch,
@@ -314,10 +315,19 @@ void backward_spikes_batch(std::vector<Spikes> &input_batch,
                     Eigen::Ref<RowMatrixXd> gradient, double v_th,
                     double tau_mem, double tau_syn) {
   auto const n_batch = input_batch.size();
+  std::vector<std::pair<RowMatrixXd, Eigen::ArrayXd>> partial_grads(n_batch);
 #pragma omp parallel for
   for (int batch_idx = 0; batch_idx < n_batch; batch_idx++) {
-    backward(input_batch[batch_idx], post_batch[batch_idx], w, gradient, v_th,
+    partial_grads.at(batch_idx) = backward(input_batch[batch_idx], post_batch[batch_idx], w, v_th,
              tau_mem, tau_syn);
+  }
+  for (int batch_idx=0; batch_idx<n_batch;batch_idx++) {
+    auto const partial_gradient = partial_grads[batch_idx].first;
+    auto const partial_spike_errors = partial_grads[batch_idx].second;
+    gradient += partial_gradient;
+    for (int spike_idx=0; spike_idx<partial_spike_errors.size(); spike_idx++) {
+      input_batch[batch_idx].errors[spike_idx] += partial_spike_errors[spike_idx];
+    }
   }
 }
 
@@ -391,10 +401,9 @@ Maxima compute_maxima(Eigen::Ref<RowMatrixXd const> w, Spikes const& spikes, dou
   return {maxima_times, maxima_values};
 }
 
-void backward(Spikes & input_spikes, Maxima const& maxima, Eigen::Ref<RowMatrixXd const> w, Eigen::Ref<RowMatrixXd> gradient, double tau_mem, double tau_syn) {
-  if (input_spikes.n_spikes == 0) {
-    return;
-  }
+std::pair<RowMatrixXd, Eigen::ArrayXd> backward(Spikes & input_spikes, Maxima const& maxima, Eigen::Ref<RowMatrixXd const> w, double tau_mem, double tau_syn) {
+  RowMatrixXd gradient = RowMatrixXd::Zero(w.rows(), w.cols());
+  Eigen::ArrayXd spike_errors = Eigen::ArrayXd::Zero(input_spikes.n_spikes);
   auto const largest_time = input_spikes.times(input_spikes.n_spikes-1);
   auto const n_maxima = maxima.times.size();
   auto const k_bwd_prefactor = tau_mem/(tau_mem-tau_syn);
@@ -411,13 +420,11 @@ void backward(Spikes & input_spikes, Maxima const& maxima, Eigen::Ref<RowMatrixX
       }
       auto const lambda_v = -std::exp(-(t_bwd-t_vmax_bwd)/tau_mem)*maxima.errors(max_idx)/tau_mem;
       auto const lambda_i = -k_bwd(t_bwd-t_vmax_bwd)*maxima.errors(max_idx)/tau_mem;
-      #pragma omp critical
-      {
-        gradient(input_spikes.sources(spike_idx), max_idx) += -tau_syn*lambda_i;
-        input_spikes.errors[spike_idx] += w(input_spikes.sources(spike_idx), max_idx) * (lambda_v - lambda_i);
-      }
+      gradient(input_spikes.sources(spike_idx), max_idx) += -tau_syn*lambda_i;
+      spike_errors[spike_idx] += w(input_spikes.sources(spike_idx), max_idx) * (lambda_v - lambda_i);
     }
   }
+  return {gradient, spike_errors};
 }
 
 std::vector<Maxima>
@@ -434,10 +441,21 @@ compute_maxima_batch(Eigen::Ref<RowMatrixXd const> w, std::vector<Spikes> const&
 void
 backward_maxima_batch(std::vector<Spikes> &input_batch, std::vector<Maxima> const& maxima, Eigen::Ref<RowMatrixXd const> w, Eigen::Ref<RowMatrixXd> gradient, double tau_mem, double tau_syn) {
   auto const n_batch = input_batch.size();
+  std::vector<std::pair<RowMatrixXd, Eigen::ArrayXd>> partial_grads(n_batch);
 #pragma omp parallel for
   for (int batch_idx = 0; batch_idx < n_batch; batch_idx++) {
-    backward(input_batch[batch_idx], maxima[batch_idx], w, gradient,
-             tau_mem, tau_syn);
+    if (input_batch[batch_idx].n_spikes > 0) {
+      partial_grads.at(batch_idx) = backward(input_batch[batch_idx], maxima[batch_idx], w,
+              tau_mem, tau_syn);
+    }
+  }
+  for (int batch_idx=0; batch_idx<n_batch;batch_idx++) {
+    auto const partial_gradient = partial_grads[batch_idx].first;
+    auto const partial_spike_errors = partial_grads[batch_idx].second;
+    gradient += partial_gradient;
+    for (int spike_idx=0; spike_idx<partial_spike_errors.size(); spike_idx++) {
+      input_batch[batch_idx].errors[spike_idx] += partial_spike_errors[spike_idx];
+    }
   }
 }
 

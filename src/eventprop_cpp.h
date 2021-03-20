@@ -65,8 +65,8 @@ std::pair<std::vector<Spikes>, double>
 compute_spikes_batch(Eigen::Ref<RowMatrixXd const> w,
                      std::vector<Spikes> const &batch, double v_th,
                      double tau_mem, double tau_syn);
-void backward(Spikes const &input_spikes, Spikes const &post_spikes,
-              Eigen::Ref<RowMatrixXd const> w, Eigen::Ref<RowMatrixXd> gradient,
+std::pair<RowMatrixXd, Eigen::ArrayXd> backward(Spikes const &input_spikes, Spikes const &post_spikes,
+              Eigen::Ref<RowMatrixXd const> w,
               double v_th, double tau_mem, double tau_syn);
 void backward_spikes_batch(std::vector<Spikes> &input_batch,
                     std::vector<Spikes> const &post_batch,
@@ -74,7 +74,7 @@ void backward_spikes_batch(std::vector<Spikes> &input_batch,
                     Eigen::Ref<RowMatrixXd> gradient, double v_th,
                     double tau_mem, double tau_syn);
 Maxima compute_maxima(Eigen::Ref<RowMatrixXd const> w, Spikes const& spikes, double tau_mem, double tau_syn);
-void backward(Spikes & input_spikes, Maxima const& maxima, Eigen::Ref<RowMatrixXd const> w, Eigen::Ref<RowMatrixXd> gradient, double tau_mem, double tau_syn);
+std::pair<RowMatrixXd, Eigen::ArrayXd> backward(Spikes & input_spikes, Maxima const& maxima, Eigen::Ref<RowMatrixXd const> w, double tau_mem, double tau_syn);
 std::vector<Maxima>
 compute_maxima_batch(Eigen::Ref<RowMatrixXd const> w, std::vector<Spikes> const& batch, double tau_mem, double tau_syn);
 void
