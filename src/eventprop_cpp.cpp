@@ -392,7 +392,10 @@ Maxima compute_maxima(Eigen::Ref<RowMatrixXd const> w, Spikes const& spikes, dou
 }
 
 void backward(Spikes & input_spikes, Maxima const& maxima, Eigen::Ref<RowMatrixXd const> w, Eigen::Ref<RowMatrixXd> gradient, double tau_mem, double tau_syn) {
-  auto const largest_time = input_spikes.times(Eigen::last);
+  if (input_spikes.n_spikes == 0) {
+    return;
+  }
+  auto const largest_time = input_spikes.times(input_spikes.n_spikes-1);
   auto const n_maxima = maxima.times.size();
   auto const k_bwd_prefactor = tau_mem/(tau_mem-tau_syn);
   auto k_bwd = [&](double t) { return k_bwd_prefactor*(std::exp(-t/tau_mem)-std::exp(-t/tau_syn));};
