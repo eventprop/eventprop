@@ -1,3 +1,4 @@
+from .layer import SpikeDataset
 from .training import AbstractTwoLayer
 from .lif_layer import LIFLayer, LIFLayerParameters
 from .loss_layer import TTFSCrossEntropyLoss, TTFSCrossEntropyLossParameters

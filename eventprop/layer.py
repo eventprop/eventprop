@@ -1,6 +1,7 @@
 from __future__ import annotations
 import numpy as np
-from typing import List, Union, Tuple
+from typing import List, NamedTuple, Union, Tuple
+from enum import Enum, auto
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
@@ -27,6 +28,46 @@ class SpikeDataset:
         self.spikes = SpikesVector(np.array(self.spikes)[idxs].tolist())
         self.labels = self.labels[idxs]
 # fmt: on
+
+
+@dataclass
+class WeightDistribution(ABC):
+    seed: int = None
+
+    def __post_init__(self):
+        if self.seed is not None:
+            self.rng = np.random.RandomState(self.seed)
+        else:
+            self.rng = np.random
+
+    @abstractmethod
+    def get_weights(self) -> np.ndarray:
+        pass
+
+
+@dataclass
+class GaussianDistribution(WeightDistribution):
+    w_mean: float = 0
+    w_std: float = 1
+
+    def get_weights(self, n_in: int, n_out: int) -> np.ndarray:
+        return self.rng.normal(self.w_mean, self.w_std, (n_in, n_out))
+
+
+@dataclass
+class UniformDistribution(WeightDistribution):
+    w_lower: float = -1
+    w_upper: float = 1
+
+    def get_weights(self, n_in: int, n_out: int):
+        return self.rng.uniform(self.w_lower, self.w_upper, size=(n_in, n_out))
+
+
+@dataclass
+class DiagonalWeights(WeightDistribution):
+    def get_weights(self, n_in: int, n_out: int):
+        assert n_in == n_out
+        return np.diag(np.ones(n_in))
 
 
 class Layer(ABC):

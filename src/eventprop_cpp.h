@@ -49,6 +49,7 @@ struct Maxima {
   Maxima(Eigen::ArrayXd times, Eigen::ArrayXd values) : times(times), values(values), errors(Eigen::ArrayXd::Zero(times.size())) {}
   Maxima() {}
   void set_error(int nrn_idx, double error) {errors(nrn_idx) = error; }
+  void set_value(int nrn_idx, double value) {values(nrn_idx) = value; }
 };
 
 PYBIND11_MAKE_OPAQUE(Spikes);

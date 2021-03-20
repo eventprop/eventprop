@@ -222,6 +222,9 @@ compute_spikes_batch(Eigen::Ref<RowMatrixXd const> w,
 void backward(Spikes &input_spikes, Spikes const &post_spikes,
               Eigen::Ref<RowMatrixXd const> w, Eigen::Ref<RowMatrixXd> gradient,
               double v_th, double tau_mem, double tau_syn) {
+  if (post_spikes.times.size() == 0) {
+    return;
+  }
   auto const n = gradient.cols();
 
   std::vector<int> input_idxs(input_spikes.times.size());
@@ -325,7 +328,6 @@ Maxima compute_maxima(Eigen::Ref<RowMatrixXd const> w, Spikes const& spikes, dou
   auto const tmax_prefactor = 1 / (1 / tau_mem - 1 / tau_syn);
   auto const tmax_summand = std::log(tau_syn / tau_mem);
   auto const &times = spikes.times;
-  auto const &sources = spikes.sources;
   auto const n_spikes = times.size();
   auto const n = w.cols();
   RowMatrixXd sum0, sum1;
@@ -359,10 +361,12 @@ Maxima compute_maxima(Eigen::Ref<RowMatrixXd const> w, Spikes const& spikes, dou
 
   Eigen::ArrayXd maxima_values = Eigen::ArrayXd::Zero(n);
   Eigen::ArrayXd maxima_times = Eigen::ArrayXd(n);
-  std::fill(maxima_times.data(), maxima_times.data()+maxima_times.size(), NAN);
-//#pragma omp parallel for
+  for (int i=0; i<n; i++) {
+    maxima_times[i] = NAN;
+  }
+#pragma omp parallel for
   for (int target_nrn_idx = 0; target_nrn_idx < n; target_nrn_idx++) {
-    double tmax, vmax, t_before, t_pre, t_post;
+    double tmax, vmax, t_pre;
       for (int i = 0; i < n_spikes + 1; i++) {
         if (i == n_spikes) {
           t_pre = inf;
@@ -416,7 +420,7 @@ void backward(Spikes & input_spikes, Maxima const& maxima, Eigen::Ref<RowMatrixX
 std::vector<Maxima>
 compute_maxima_batch(Eigen::Ref<RowMatrixXd const> w, std::vector<Spikes> const& batch, double tau_mem, double tau_syn) {
   auto result = std::vector<Maxima>(batch.size());
-  //#pragma omp parallel for
+  #pragma omp parallel for
     for (int batch_idx = 0; batch_idx < batch.size(); batch_idx++) {
     result.at(batch_idx) =
         compute_maxima(w, batch[batch_idx], tau_mem, tau_syn);
@@ -427,7 +431,7 @@ compute_maxima_batch(Eigen::Ref<RowMatrixXd const> w, std::vector<Spikes> const&
 void
 backward_maxima_batch(std::vector<Spikes> &input_batch, std::vector<Maxima> const& maxima, Eigen::Ref<RowMatrixXd const> w, Eigen::Ref<RowMatrixXd> gradient, double tau_mem, double tau_syn) {
   auto const n_batch = input_batch.size();
-//#pragma omp parallel for
+#pragma omp parallel for
   for (int batch_idx = 0; batch_idx < n_batch; batch_idx++) {
     backward(input_batch[batch_idx], maxima[batch_idx], w, gradient,
              tau_mem, tau_syn);
@@ -465,10 +469,29 @@ PYBIND11_MODULE(eventprop_cpp, m) {
     .def(py::init<Eigen::ArrayXd, Eigen::ArrayXd, Eigen::ArrayXd>(), "times"_a, "values"_a, "errors"_a)
     .def(py::init<Eigen::ArrayXd, Eigen::ArrayXd>(), "times"_a, "values"_a)
     .def("set_error", &Maxima::set_error, "nrn_idx"_a, "error"_a)
+    .def("set_value", &Maxima::set_value, "nrn_idx"_a, "value"_a)
     .def_readonly("times", &Maxima::times)
     .def_readonly("values", &Maxima::values)
     .def_readonly("errors", &Maxima::errors);
-  py::bind_vector<std::vector<Spikes>>(m, "SpikesVector");
+  py::bind_vector<std::vector<Spikes>>(m, "SpikesVector")
+  .def(py::pickle(
+          [](std::vector<Spikes> const&vec) { // __getstate__
+            /* Return a tuple that fully encodes the state of the object */
+            auto ret = py::list();
+            for (auto const & spikes: vec) {
+              ret.append(py::make_tuple(spikes.times, spikes.sources));
+            }
+            return ret;
+          },
+          [](py::list ret) { // __setstate__
+            /* Create a new C++ instance */
+            std::vector<Spikes> vec;
+            for (int i=0; i<ret.size(); i++) {
+              auto tup = ret[i].cast<py::tuple>();
+              vec.push_back(Spikes(tup[0].cast<Eigen::ArrayXd>(), tup[1].cast<Eigen::ArrayXi>()));
+            }
+            return vec;
+          }));
   py::bind_vector<std::vector<Maxima>>(m, "MaximaVector");
   m.def("compute_spikes_batch_cpp", &compute_spikes_batch, "w"_a.noconvert(),
         "batch"_a, "v_th"_a, "tau_mem"_a, "tau_syn"_a)

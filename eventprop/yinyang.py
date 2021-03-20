@@ -1,7 +1,9 @@
+from eventprop.loss_layer import VMaxCrossEntropyLossParameters
+from eventprop.vmax_training import TwoLayerVMax
 import numpy as np
 import os
 
-from eventprop.layer import SpikeDataset
+from eventprop.layer import GaussianDistribution, SpikeDataset, DiagonalWeights
 from eventprop.eventprop_cpp import Spikes, SpikesVector
 from eventprop.lif_layer import LIFLayerParameters
 from eventprop.ttfs_training import TwoLayerTTFS, TTFSCrossEntropyLossParameters
@@ -12,35 +14,7 @@ dir_path = os.path.join(
 )
 
 
-class YinYangTTFS(TwoLayerTTFS):
-    def __init__(
-        self,
-        gd_parameters: GradientDescentParameters = GradientDescentParameters(
-            minibatch_size=200, iterations=30000, lr=1e-3, gradient_clip=None
-        ),
-        hidden_parameters: LIFLayerParameters = LIFLayerParameters(
-            n_in=5, n=200, w_mean=2, w_std=1, tau_mem=20e-3, tau_syn=5e-3
-        ),
-        output_parameters: LIFLayerParameters = LIFLayerParameters(
-            n_in=200, n=3, w_mean=0.4, w_std=0.4, tau_mem=20e-3, tau_syn=5e-3
-        ),
-        loss_parameters: TTFSCrossEntropyLossParameters = TTFSCrossEntropyLossParameters(
-            n=3
-        ),
-        t_min: float = 10e-3,
-        t_max: float = 40e-3,
-        t_bias: float = 20e-3,
-        **kwargs,
-    ):
-        self.t_min, self.t_max, self.t_bias = t_min, t_max, t_bias
-        super().__init__(
-            gd_parameters=gd_parameters,
-            hidden_parameters=hidden_parameters,
-            output_parameters=output_parameters,
-            loss_parameters=loss_parameters,
-            **kwargs,
-        )
-
+class YinYangMixin:
     def load_data(self):
         train_samples = np.load(os.path.join(dir_path, "train_samples.npy"))
         test_samples = np.load(os.path.join(dir_path, "test_samples.npy"))
@@ -68,6 +42,82 @@ class YinYangTTFS(TwoLayerTTFS):
             get_batch(train_samples, train_labels),
             get_batch(test_samples, test_labels),
             get_batch(valid_samples, valid_labels),
+        )
+
+
+class YinYangTTFS(YinYangMixin, TwoLayerTTFS):
+    def __init__(
+        self,
+        gd_parameters: GradientDescentParameters = GradientDescentParameters(
+            minibatch_size=200, iterations=30000, lr=1e-3, gradient_clip=None
+        ),
+        hidden_parameters: LIFLayerParameters = LIFLayerParameters(
+            n_in=5,
+            n=200,
+            tau_mem=20e-3,
+            tau_syn=5e-3,
+            w_dist=GaussianDistribution(w_mean=2, w_std=1),
+        ),
+        output_parameters: LIFLayerParameters = LIFLayerParameters(
+            n_in=200,
+            n=3,
+            tau_mem=20e-3,
+            tau_syn=5e-3,
+            w_dist=GaussianDistribution(w_mean=0.4, w_std=0.4),
+        ),
+        loss_parameters: TTFSCrossEntropyLossParameters = TTFSCrossEntropyLossParameters(
+            n=3
+        ),
+        t_min: float = 10e-3,
+        t_max: float = 40e-3,
+        t_bias: float = 20e-3,
+        **kwargs,
+    ):
+        self.t_min, self.t_max, self.t_bias = t_min, t_max, t_bias
+        super().__init__(
+            gd_parameters=gd_parameters,
+            hidden_parameters=hidden_parameters,
+            output_parameters=output_parameters,
+            loss_parameters=loss_parameters,
+            **kwargs,
+        )
+
+
+class YinYangVMax(YinYangMixin, TwoLayerVMax):
+    def __init__(
+        self,
+        gd_parameters: GradientDescentParameters = GradientDescentParameters(
+            minibatch_size=200, iterations=30000, lr=1e-3, gradient_clip=None
+        ),
+        hidden_parameters: LIFLayerParameters = LIFLayerParameters(
+            n_in=5,
+            n=200,
+            tau_mem=20e-3,
+            tau_syn=5e-3,
+            w_dist=GaussianDistribution(w_mean=2, w_std=1),
+        ),
+        output_parameters: LIFLayerParameters = LIFLayerParameters(
+            n_in=200,
+            n=3,
+            tau_mem=20e-3,
+            tau_syn=5e-3,
+            w_dist=GaussianDistribution(w_mean=0.4, w_std=0.4),
+        ),
+        loss_parameters: VMaxCrossEntropyLossParameters = VMaxCrossEntropyLossParameters(
+            n=3, n_in=3, w_dist=DiagonalWeights(), plastic_weights=True
+        ),
+        t_min: float = 10e-3,
+        t_max: float = 40e-3,
+        t_bias: float = 20e-3,
+        **kwargs,
+    ):
+        self.t_min, self.t_max, self.t_bias = t_min, t_max, t_bias
+        super().__init__(
+            gd_parameters=gd_parameters,
+            hidden_parameters=hidden_parameters,
+            output_parameters=output_parameters,
+            loss_parameters=loss_parameters,
+            **kwargs,
         )
 
 

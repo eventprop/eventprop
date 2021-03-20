@@ -4,6 +4,7 @@ from typing import NamedTuple
 import logging
 
 from .layer import Layer
+from .li_layer import LILayer
 from .lif_layer import LIFLayer
 
 
@@ -64,9 +65,13 @@ class Adam(Optimizer):
         self.parameters = parameters
 
     def step(self):
-        ancestor_layer = self.loss.ancestor_layer
+        ancestor_layer = self.loss
         while ancestor_layer is not None:
-            if not isinstance(ancestor_layer, LIFLayer):
+            if not hasattr(ancestor_layer, "gradient"):
+                ancestor_layer = ancestor_layer.ancestor_layer
+                continue
+            if not ancestor_layer.parameters.plastic_weights:
+                ancestor_layer = ancestor_layer.ancestor_layer
                 continue
             if not hasattr(ancestor_layer, "_opt_adam_m"):
                 ancestor_layer._opt_adam_m = np.zeros_like(ancestor_layer.gradient)

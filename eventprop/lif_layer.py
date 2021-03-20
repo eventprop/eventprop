@@ -3,11 +3,10 @@ from scipy.optimize import brentq
 import logging
 from typing import List, NamedTuple
 
-from .layer import Layer
+from .layer import GaussianDistribution, Layer, WeightDistribution
 from .eventprop_cpp import (
     compute_spikes_batch_cpp,
     backward_spikes_batch_cpp,
-    Spikes,
     SpikesVector,
 )
 from . import eventprop_cpp
@@ -15,15 +14,15 @@ from . import eventprop_cpp
 
 # fmt: off
 class LIFLayerParameters(NamedTuple):
-    n             : int   = 10
-    n_in          : int   = 10
-    tau_mem       : float = 20e-3 # s
-    tau_syn       : float = 5e-3  # s
-    v_th          : float = 1.
-    v_leak        : float = 0
-    w_mean        : float = None
-    w_std         : float = None
-    n_spikes_max  : int   = 100
+    n               : int   = None
+    n_in            : int   = None
+    tau_mem         : float = 20e-3 # s
+    tau_syn         : float = 5e-3  # s
+    v_th            : float = 1.
+    v_leak          : float = 0
+    n_spikes_max    : int   = 100
+    plastic_weights : bool  = True
+    w_dist          : WeightDistribution = GaussianDistribution()
 # fmt: on
 
 
@@ -35,14 +34,10 @@ class LIFLayer(Layer):
             assert isinstance(w_in, np.ndarray)
             assert w_in.shape == (self.parameters.n_in, self.parameters.n)
             self.w_in = w_in
-        elif self.parameters.w_mean is not None and self.parameters.w_std is not None:
-            self.w_in = np.random.normal(
-                self.parameters.w_mean,
-                self.parameters.w_std,
-                size=(self.parameters.n_in, self.parameters.n),
-            )
         else:
-            self.w_in = None
+            self.w_in = self.parameters.w_dist.get_weights(
+                self.parameters.n_in, self.parameters.n
+            )
         self.post_batch = None
         self.gradient = np.zeros_like(self.w_in)
 

@@ -1,13 +1,13 @@
 from typing import NamedTuple, List
 import numpy as np
 
-from .layer import Layer
+from .layer import GaussianDistribution, Layer, WeightDistribution
 from .li_layer import LILayer, LILayerParameters
-from .eventprop_cpp import SpikesVector
+from .eventprop_cpp import SpikesVector, MaximaVector
 
 # fmt: off
 class TTFSCrossEntropyLossParameters(NamedTuple):
-    n           : int   = 10
+    n           : int   = None
     alpha       : float = 1e-2
     tau0        : float = 2e-3  # s
     tau1        : float = 10e-3 # s
@@ -113,37 +113,51 @@ class TTFSCrossEntropyLoss(Layer):
 
 
 class VMaxCrossEntropyLoss(LILayer):
-    def get_loss(self, correct_label_neuron: int):
+    def forward(self, input_batch: SpikesVector):
+        super().forward(input_batch)
+        self.sum0 = [
+            np.sum(np.exp(self.maxima_batch[batch_idx].values))
+            for batch_idx in range(len(self.input_batch))
+        ]
+        self._ran_forward = True
+
+    def get_losses(self, labels: np.ndarray):
         """
         Compute cross-entropy loss over voltage maxima
         """
         if not self._ran_forward:
             raise RuntimeError("Run forward first!")
-        v_max_label = self.vmax[correct_label_neuron].value
-        loss = -np.log(
-            np.exp(v_max_label) / np.sum([np.exp(vmax.value) for vmax in self.vmax])
-        )
+        loss = [
+            -np.log(
+                np.exp(self.maxima_batch[batch_idx].values[labels[batch_idx]])
+                / self.sum0[batch_idx]
+            )
+            for batch_idx in range(len(self.input_batch))
+        ]
         return loss
 
-    def get_classification_result(self, correct_label_neuron: int):
-        v_max_label = self.vmax[correct_label_neuron].value
-        if all([v_max_label >= vmax.value for vmax in self.vmax]):
-            return 1
-        else:
-            return 0
+    def get_accuracy(self, labels: np.ndarray):
+        return np.mean(
+            [
+                np.sum(
+                    (
+                        self.maxima_batch[batch_idx].values
+                        >= self.maxima_batch[batch_idx].values[labels[batch_idx]]
+                    )
+                )
+                == 1
+                for batch_idx in range(len(self.input_batch))
+            ]
+        )
 
-    def backward(self, correct_label_neuron: int, code: str = "python"):
+    def backward(self, labels: np.ndarray):
         if not self._ran_forward:
             raise RuntimeError("Run forward first!")
-
-        exp_sum = np.sum([np.exp(vmax.value) for vmax in self.vmax])
-        label_error = np.exp(self.vmax[correct_label_neuron].value) / exp_sum - 1
-        self.vmax[correct_label_neuron].error = label_error
-
-        for nrn_idx in range(self.parameters.n):
-            if nrn_idx == correct_label_neuron:
-                continue
-            error = np.exp(self.vmax[nrn_idx].value) / exp_sum
-            self.vmax[nrn_idx].error = error
-        self._ran_backward = True
-        super().backward(code=code)
+        for batch_idx in range(len(self.input_batch)):
+            error = np.exp(self.maxima_batch[batch_idx].values) / self.sum0[batch_idx]
+            for nrn_idx in range(self.parameters.n):
+                self.maxima_batch[batch_idx].set_error(nrn_idx, error[nrn_idx])
+            self.maxima_batch[batch_idx].set_error(
+                labels[batch_idx], error[labels[batch_idx]] - 1
+            )
+        super().backward()
