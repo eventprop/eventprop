@@ -224,9 +224,6 @@ std::pair<RowMatrixXd, Eigen::ArrayXd> backward(Spikes &input_spikes, Spikes con
               double v_th, double tau_mem, double tau_syn) {
   RowMatrixXd gradient = RowMatrixXd::Zero(w.rows(), w.cols());
   Eigen::ArrayXd spike_errors = Eigen::ArrayXd::Zero(input_spikes.n_spikes);
-  if (post_spikes.times.size() == 0) {
-    return {gradient, spike_errors};
-  }
   auto const n = gradient.cols();
 
   std::vector<int> input_idxs(input_spikes.times.size());
@@ -318,10 +315,15 @@ void backward_spikes_batch(std::vector<Spikes> &input_batch,
   std::vector<std::pair<RowMatrixXd, Eigen::ArrayXd>> partial_grads(n_batch);
 #pragma omp parallel for
   for (int batch_idx = 0; batch_idx < n_batch; batch_idx++) {
-    partial_grads.at(batch_idx) = backward(input_batch[batch_idx], post_batch[batch_idx], w, v_th,
-             tau_mem, tau_syn);
+    if (post_batch[batch_idx].n_spikes > 0) {
+      partial_grads.at(batch_idx) = backward(input_batch[batch_idx], post_batch[batch_idx], w, v_th,
+              tau_mem, tau_syn);
+    }
   }
   for (int batch_idx=0; batch_idx<n_batch;batch_idx++) {
+    if (post_batch[batch_idx].n_spikes == 0) {
+      continue;
+    }
     auto const partial_gradient = partial_grads[batch_idx].first;
     auto const partial_spike_errors = partial_grads[batch_idx].second;
     gradient += partial_gradient;
@@ -450,6 +452,9 @@ backward_maxima_batch(std::vector<Spikes> &input_batch, std::vector<Maxima> cons
     }
   }
   for (int batch_idx=0; batch_idx<n_batch;batch_idx++) {
+    if (input_batch[batch_idx].n_spikes == 0) {
+      continue;
+    }
     auto const partial_gradient = partial_grads[batch_idx].first;
     auto const partial_spike_errors = partial_grads[batch_idx].second;
     gradient += partial_gradient;
