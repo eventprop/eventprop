@@ -53,42 +53,42 @@ class AbstractTraining(ABC):
         self.loss(self.output_layer(self.hidden_layer(dataset.spikes)))
         accuracy = self.loss.get_accuracy(dataset.labels)
         losses = self.loss.get_losses(dataset.labels)
-        first_spikes = self.loss.first_spike_times.copy()
         logging.debug(f"Got accuracy: {accuracy}.")
         logging.debug(f"Got loss: {np.mean(losses)}.")
-        return np.nanmean(losses), accuracy, first_spikes
+        return np.nanmean(losses), accuracy
 
     def valid(self):
-        valid_loss, valid_error, valid_first_spikes = self._get_results_for_set(
-            self.valid_batch
-        )
+        valid_loss, valid_error = self._get_results_for_set(self.valid_batch)
         self.valid_accuracies.append(valid_error)
         self.valid_losses.append(valid_loss)
-        self.valid_first_spikes.append(valid_first_spikes)
 
     def test(self):
-        test_loss, test_error, test_first_spikes = self._get_results_for_set(
-            self.test_batch
-        )
+        test_loss, test_error = self._get_results_for_set(self.test_batch)
         self.test_accuracies.append(test_error)
         self.test_losses.append(test_loss)
-        self.test_first_spikes.append(test_first_spikes)
 
-    def save_to_file(self, fname):
+    def save_to_file(self, fname: str):
         pickle.dump(
-            (
-                self.losses,
-                self.accuracies,
-                self.test_accuracies,
-                self.test_losses,
-                self.test_first_spikes,
-                self.valid_accuracies,
-                self.valid_losses,
-                self.valid_first_spikes,
-                self.weights,
-            ),
+            self.get_data_for_pickling(),
             open(fname, "wb"),
         )
+
+    def get_data_for_pickling(self):
+        return (
+            self.losses,
+            self.accuracies,
+            self.test_accuracies,
+            self.test_losses,
+            self.valid_accuracies,
+            self.valid_losses,
+            self.weights,
+        )
+
+    def reset_results(self):
+        self.losses, self.accuracies = list(), list()
+        self.test_losses, self.test_accuracies = list(), list()
+        self.valid_accuracies, self.valid_losses = list(), list()
+        self.weights = list()
 
     @abstractmethod
     def forward_and_backward(self, minibatch: SpikeDataset):
@@ -109,11 +109,7 @@ class AbstractTraining(ABC):
         test_every: int = 100,
         valid_every: int = 100,
     ):
-        self.losses, self.accuracies = list(), list()
-        self.test_losses, self.test_accuracies = list(), list()
-        self.valid_accuracies, self.valid_losses = list(), list()
-        self.weights = list()
-        self.test_first_spikes, self.valid_first_spikes = list(), list()
+        self.reset_results()
         for iteration in range(self.gd_parameters.iterations):
             minibatch = self._get_minibatch()
             self.forward_and_backward(minibatch)
