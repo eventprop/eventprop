@@ -61,11 +61,13 @@ class AbstractTraining(ABC):
         valid_loss, valid_error = self._get_results_for_set(self.valid_batch)
         self.valid_accuracies.append(valid_error)
         self.valid_losses.append(valid_loss)
+        return valid_loss, valid_error
 
     def test(self):
         test_loss, test_error = self._get_results_for_set(self.test_batch)
         self.test_accuracies.append(test_error)
         self.test_losses.append(test_loss)
+        return test_loss, test_error
 
     def save_to_file(self, fname: str):
         pickle.dump(
