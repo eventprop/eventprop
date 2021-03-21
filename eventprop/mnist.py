@@ -44,7 +44,7 @@ valid_path = os.path.join(dir_path, "mnist_valid.pkl")
 class MNISTMixin:
     valid_num: int = 5000
     t_min = 0
-    t_max = 30e-3
+    t_max = 40e-3
 
     def load_data(self):
         if not os.path.exists(dir_path):
@@ -98,8 +98,10 @@ class MNISTMixin:
             for s in tqdm(samples):
                 times, sources = list(), list()
                 for idx, pix in enumerate(s):
-                    if pix != 0:
-                        times.append(self.t_min + pix / 255 * (self.t_max - self.t_min))
+                    if pix > 1:
+                        times.append(
+                            self.t_min + (1 - pix / 255) * (self.t_max - self.t_min)
+                        )
                         sources.append(idx)
                 times = np.array(times, dtype=np.float64)
                 sources = np.array(sources, dtype=np.int32)
@@ -138,9 +140,6 @@ class OneLayerMNISTVMax(MNISTMixin, OneLayerVMax):
             n=100,
             tau_mem=20e-3,
             tau_syn=5e-3,
-            # w_dist=UniformDistribution(
-            #    w_lower=-20 / np.sqrt(3 * 784), w_upper=20 / np.sqrt(3 * 784)
-            # )
             w_dist=GaussianDistribution(
                 w_mean=4 * 1 / np.sqrt(700), w_std=2 * 1 / np.sqrt(700)
             ),
@@ -164,9 +163,53 @@ class OneLayerMNISTVMax(MNISTMixin, OneLayerVMax):
         )
 
 
+class TwoLayerMNISTVMax(MNISTMixin, TwoLayerVMax):
+    def __init__(
+        self,
+        gd_parameters: GradientDescentParameters = GradientDescentParameters(
+            minibatch_size=256, iterations=30000, lr=1e-3, gradient_clip=None
+        ),
+        hidden_parameters: LIFLayerParameters = LIFLayerParameters(
+            n_in=784,
+            n=100,
+            tau_mem=20e-3,
+            tau_syn=5e-3,
+            w_dist=GaussianDistribution(
+                w_mean=8 * 1 / np.sqrt(784), w_std=4 / np.sqrt(784)
+            ),
+        ),
+        output_parameters: LIFLayerParameters = LIFLayerParameters(
+            n_in=100,
+            n=100,
+            tau_mem=20e-3,
+            tau_syn=5e-3,
+            w_dist=GaussianDistribution(
+                w_mean=4 * 1 / np.sqrt(100), w_std=2 * 1 / np.sqrt(100)
+            ),
+        ),
+        loss_parameters: VMaxCrossEntropyLossParameters = VMaxCrossEntropyLossParameters(
+            n=10,
+            n_in=100,
+            tau_mem=20e-3,
+            tau_syn=5e-3,
+            w_dist=GaussianDistribution(
+                w_mean=0.25 * 1 / np.sqrt(100), w_std=0.25 * 1 / np.sqrt(100)
+            ),
+        ),
+        **kwargs,
+    ):
+        super().__init__(
+            gd_parameters=gd_parameters,
+            hidden_parameters=hidden_parameters,
+            output_parameters=output_parameters,
+            loss_parameters=loss_parameters,
+            **kwargs,
+        )
+
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
-    mnist = OneLayerMNISTVMax(
+    mnist = TwoLayerMNISTVMax(
         weight_increase_threshold_output=0.2, weight_increase_bump=1e-4
     )
-    mnist.train(test_every=None, valid_every=100)
+    mnist.train(test_every=None, valid_every=None)
