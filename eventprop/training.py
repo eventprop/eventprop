@@ -50,7 +50,7 @@ class AbstractTraining(ABC):
             return samples
 
     def _get_results_for_set(self, dataset: SpikeDataset):
-        self.loss(self.output_layer(self.hidden_layer(dataset.spikes)))
+        self.forward(dataset)
         accuracy = self.loss.get_accuracy(dataset.labels)
         losses = self.loss.get_losses(dataset.labels)
         logging.debug(f"Got accuracy: {accuracy}.")
@@ -90,8 +90,16 @@ class AbstractTraining(ABC):
         self.valid_accuracies, self.valid_losses = list(), list()
         self.weights = list()
 
-    @abstractmethod
     def forward_and_backward(self, minibatch: SpikeDataset):
+        self.forward(minibatch)
+        self.backward(minibatch)
+
+    @abstractmethod
+    def forward(self, minibatch: SpikeDataset):
+        pass
+
+    @abstractmethod
+    def backward(self, minibatch: SpikeDataset):
         pass
 
     @abstractmethod
@@ -167,8 +175,10 @@ class AbstractOneLayer(AbstractTraining):
         self.output_parameters = output_parameters
         self.output_layer = output_layer_class(self.output_parameters)
 
-    def forward_and_backward(self, minibatch: SpikeDataset):
+    def forward(self, minibatch: SpikeDataset):
         self.loss(self.output_layer(minibatch.spikes))
+
+    def backward(self, minibatch: SpikeDataset):
         self.loss.backward(minibatch.labels)
 
     def process_dead_neurons(self):
@@ -179,7 +189,7 @@ class AbstractOneLayer(AbstractTraining):
             self.output_layer.w_in += self.weight_increase_bump
 
     def get_weight_copy(self) -> Tuple:
-        return self.loss.output_layer.w_in.copy()
+        return self.output_layer.w_in.copy()
 
 
 class AbstractTwoLayer(AbstractTraining):
@@ -205,8 +215,10 @@ class AbstractTwoLayer(AbstractTraining):
         self.hidden_layer = self.hidden_layer_class(self.hidden_parameters)
         self.output_layer = self.output_layer_class(self.output_parameters)
 
-    def forward_and_backward(self, minibatch: SpikeDataset):
+    def forward(self, minibatch: SpikeDataset):
         self.loss(self.output_layer(self.hidden_layer(minibatch.spikes)))
+
+    def backward(self, minibatch: SpikeDataset):
         self.loss.backward(minibatch.labels)
 
     def process_dead_neurons(self):
