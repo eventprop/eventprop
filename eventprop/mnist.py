@@ -12,6 +12,8 @@ from eventprop.vmax_training import (
     TwoLayerVMax,
     VMaxCrossEntropyLossParameters,
 )
+from eventprop.loss_layer import TTFSCrossEntropyLossParameters
+from eventprop.ttfs_training import TwoLayerTTFS
 from eventprop.optimizer import GradientDescentParameters
 from eventprop.lif_layer import LIFLayerParameters
 from eventprop.eventprop_cpp import Spikes, SpikesVector
