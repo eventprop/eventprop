@@ -129,6 +129,44 @@ class MNISTMixin:
             pickle.dump(valid_batch, f)
 
 
+class TwoLayerMNISTTTFS(MNISTMixin, TwoLayerTTFS):
+    def __init__(
+        self,
+        gd_parameters: GradientDescentParameters = GradientDescentParameters(
+            minibatch_size=256, iterations=30000, lr=1e-3, gradient_clip=None
+        ),
+        hidden_parameters: LIFLayerParameters = LIFLayerParameters(
+            n_in=784,
+            n=100,
+            tau_mem=20e-3,
+            tau_syn=5e-3,
+            w_dist=GaussianDistribution(
+                w_mean=4 * 1 / np.sqrt(700), w_std=2 * 1 / np.sqrt(700)
+            ),
+        ),
+        output_parameters: LIFLayerParameters = LIFLayerParameters(
+            n_in=100,
+            n=10,
+            tau_mem=20e-3,
+            tau_syn=5e-3,
+            w_dist=GaussianDistribution(
+                w_mean=1 / np.sqrt(100), w_std=1 / np.sqrt(100)
+            ),
+        ),
+        loss_parameters: TTFSCrossEntropyLossParameters = TTFSCrossEntropyLossParameters(
+            n=10,
+        ),
+        **kwargs,
+    ):
+        super().__init__(
+            gd_parameters=gd_parameters,
+            hidden_parameters=hidden_parameters,
+            output_parameters=output_parameters,
+            loss_parameters=loss_parameters,
+            **kwargs,
+        )
+
+
 class OneLayerMNISTVMax(MNISTMixin, OneLayerVMax):
     def __init__(
         self,
