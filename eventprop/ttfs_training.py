@@ -17,6 +17,7 @@ class TTFSMixin:
         self.valid_accuracies.append(valid_error)
         self.valid_losses.append(valid_loss)
         self.valid_first_spikes.append(valid_first_spikes)
+        return valid_loss, valid_error, valid_first_spikes
 
     def test(self):
         test_loss, test_error, test_first_spikes = self._get_results_for_set(
@@ -25,6 +26,7 @@ class TTFSMixin:
         self.test_accuracies.append(test_error)
         self.test_losses.append(test_loss)
         self.test_first_spikes.append(test_first_spikes)
+        return test_loss, test_error, test_first_spikes
 
     def get_data_for_pickling(self):
         return (
