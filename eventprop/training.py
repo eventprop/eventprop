@@ -168,8 +168,8 @@ class AbstractTraining(ABC):
                     self.save_to_file(save_to)
         if save_to is not None:
             self.weights.append(self.get_weight_copy())
-        logging.debug(f"Saving results to {save_to}.")
-        self.save_to_file(save_to)
+            logging.debug(f"Saving results to {save_to}.")
+            self.save_to_file(save_to)
         return self.test()
 
 
