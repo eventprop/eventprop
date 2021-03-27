@@ -23,7 +23,6 @@ class LIFLayerParameters(NamedTuple):
     tau_syn         : float = 5e-3  # s
     v_th            : float = 1.
     v_leak          : float = 0
-    n_spikes_max    : int   = 100
     plastic_weights : bool  = True
     w_dist          : WeightDistribution = GaussianDistribution()
 # fmt: on
