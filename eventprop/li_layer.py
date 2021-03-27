@@ -38,7 +38,7 @@ class LILayer(Layer):
         self.input_batch = None
         self.gradient = np.zeros_like(self.w_in)
 
-    def forward(self, input_batch: SpikesVector):
+    def forward(self, input_batch: SpikesVector) -> MaximaVector:
         super().forward(input_batch)
         self.maxima_batch = compute_maxima_batch_cpp(
             self.w_in, input_batch, self.parameters.tau_mem, self.parameters.tau_syn
@@ -57,26 +57,6 @@ class LILayer(Layer):
         )
         self._ran_backward = True
         super().backward()
-
-    def get_voltage_trace_for_neuron(
-        self,
-        target_nrn_idx: int,
-        t_max: float = 1.0,
-        dt: float = 1e-4,
-        code: str = "python",
-    ) -> np.array:
-        if self.w_in is None:
-            raise RuntimeError("Set weights first!")
-        if not self._ran_forward:
-            raise RuntimeError("Run forward first!")
-        ts = np.arange(0, t_max, step=dt)
-        if code == "python":
-            v = np.zeros_like(ts)
-            for t_idx, t in enumerate(ts):
-                v[t_idx] = self._v(t, target_nrn_idx)
-            return ts, v
-        elif code == "cpp":
-            raise NotImplementedError()
 
     def zero_grad(self):
         self.gradient[:] = 0

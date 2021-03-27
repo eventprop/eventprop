@@ -32,6 +32,84 @@ std::pair<RowMatrixXd, RowMatrixXd> compute_sums(Eigen::Ref<RowMatrixXd const> w
   return {sum0, sum1};
 }
 
+std::pair<Eigen::ArrayXd, Eigen::ArrayXd> compute_voltage_trace(double t_max, double dt, int target_nrn_idx, Eigen::Ref<RowMatrixXd const> w, Spikes const& spikes, double v_th, double tau_mem, double tau_syn) {
+  auto const k_prefactor = tau_syn / (tau_mem - tau_syn);
+  auto const post_spikes = compute_spikes(w, spikes, v_th, tau_mem, tau_syn);
+  auto v = [&](double t) {
+    double mem = 0;
+    for (int spike_idx=0; spike_idx<spikes.n_spikes; spike_idx++) {
+      if (spikes.times[spike_idx] > t)
+        break;
+      mem += w(spikes.sources[spike_idx], target_nrn_idx) * k_prefactor * (std::exp(-(t-spikes.times[spike_idx])/tau_mem) - std::exp(-(t-spikes.times[spike_idx])/tau_syn));
+    }
+    for (int spike_idx=0; spike_idx<post_spikes.n_spikes; spike_idx++) {
+      if (post_spikes.times[spike_idx] > t)
+        break;
+      if (post_spikes.sources[spike_idx] == target_nrn_idx)
+        mem -= v_th * std::exp(-(t - post_spikes.times[spike_idx]) / tau_mem);
+    }
+    return mem;
+  };
+  int const n_t = static_cast<int>(t_max/dt);
+  Eigen::ArrayXd v_trace = Eigen::ArrayXd::Zero(n_t);
+  Eigen::ArrayXd ts = Eigen::ArrayXd::Zero(n_t);
+  for (int t_idx=0; t_idx<n_t; t_idx++) {
+    v_trace[t_idx] = v(dt*t_idx);
+    ts[t_idx] = dt*t_idx;
+  }
+  return {ts, v_trace};
+}
+
+double compute_lambda_i(double t, int target_nrn_idx, Spikes const& post_spikes, double v_th, double tau_mem, double tau_syn)
+{
+  auto const n = post_spikes.first_spike_times.size();
+  Eigen::ArrayXd lambda_v = Eigen::ArrayXd::Zero(n);
+  std::vector<std::vector<std::pair<double, double>>> lambda_i_jumps(n);
+  auto const largest_time = post_spikes.times[post_spikes.n_spikes-1];
+  double previous_t = largest_time;
+
+  auto const k_bwd_prefactor = tau_mem / (tau_mem - tau_syn);
+  auto k_bwd = [&](double t) {
+    return k_bwd_prefactor * (std::exp(-t / tau_mem) - std::exp(-t / tau_syn));
+  };
+
+  for (int spike_idx=post_spikes.n_spikes-1; spike_idx>=0;spike_idx--) {
+    auto const spike_time = post_spikes.times[spike_idx];
+    if (spike_time < t)
+      break;
+    auto const spike_source = post_spikes.sources[spike_idx];
+    auto const t_bwd = largest_time - spike_time;
+    lambda_v = lambda_v * std::exp(-(t_bwd - previous_t) / tau_mem);
+    auto const i = post_spikes.currents[spike_idx];
+    lambda_i_jumps.at(spike_source)
+        .push_back({1 / (i - v_th) *
+                        (v_th * lambda_v[spike_source] +
+                          post_spikes.errors[spike_idx]),
+                    t_bwd});
+    lambda_v[spike_source] =
+        i / (i - v_th) * lambda_v[spike_source] +
+        1 / (i - v_th) * post_spikes.errors[spike_idx];
+    previous_t = t_bwd;
+  }
+  double lambda_i = 0;
+  auto const t_bwd = largest_time - t;
+  for (auto const &jump : lambda_i_jumps.at(target_nrn_idx)) {
+    lambda_i += jump.first * k_bwd(t_bwd - jump.second);
+  }
+  return lambda_i;
+}
+
+std::pair<Eigen::ArrayXd, Eigen::ArrayXd> compute_lambda_i_trace(double t_max, double dt, int target_nrn_idx, Spikes const& post_spikes, double v_th, double tau_mem, double tau_syn) {
+  int const n_t = static_cast<int>(t_max/dt);
+  Eigen::ArrayXd lambda_trace = Eigen::ArrayXd::Zero(n_t);
+  Eigen::ArrayXd ts = Eigen::ArrayXd::Zero(n_t);
+  for (int t_idx=0; t_idx<n_t; t_idx++) {
+    lambda_trace[t_idx] = compute_lambda_i(dt*t_idx, target_nrn_idx, post_spikes, v_th, tau_mem, tau_syn);
+    ts[t_idx] = dt*t_idx;
+  }
+  return {ts, lambda_trace};
+}
+
 Spikes
 compute_spikes(Eigen::Ref<RowMatrixXd const> w, Spikes const &spikes,
                double v_th, double tau_mem, double tau_syn) {
@@ -213,7 +291,7 @@ compute_spikes(Eigen::Ref<RowMatrixXd const> w, Spikes const &spikes,
       n_dead += 1;
     }
   }
-  return {all_times_array, all_sources_array, all_currents_array, first_spike_times, first_spike_idxs, n_dead/((double)n)};
+  return {all_times_array, all_sources_array, all_currents_array, first_spike_times, first_spike_idxs, n_dead/static_cast<double>(n)};
 }
 
 std::pair<std::vector<Spikes>, double>
@@ -543,5 +621,8 @@ PYBIND11_MODULE(eventprop_cpp, m) {
         "batch"_a, "tau_mem"_a, "tau_syn"_a)
       .def("backward_maxima_batch_cpp", &backward_maxima_batch, "input_batch"_a.noconvert(),
            "maxima"_a.noconvert(), "w"_a.noconvert(),
-           "gradient"_a.noconvert(), "tau_mem"_a, "tau_syn"_a);
+           "gradient"_a.noconvert(), "tau_mem"_a, "tau_syn"_a)
+  .def("compute_voltage_trace_cpp", &compute_voltage_trace, "t_max"_a, "dt"_a, "target_nrn_idx"_a, "w"_a.noconvert(), "spikes"_a, "v_th"_a, "tau_mem"_a, "tau_syn"_a)
+  .def("compute_lambda_i_cpp", &compute_lambda_i, "t"_a, "target_nrn_idx"_a, "post_spikes"_a, "v_th"_a, "tau_mem"_a, "tau_syn"_a)
+  .def("compute_lambda_i_trace_cpp", &compute_lambda_i_trace, "t_max"_a, "dt"_a, "target_nrn_idx"_a, "post_spikes"_a, "v_th"_a, "tau_mem"_a, "tau_syn"_a);
 };

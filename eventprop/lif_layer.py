@@ -1,13 +1,16 @@
 import numpy as np
 from scipy.optimize import brentq
 import logging
-from typing import List, NamedTuple
+from typing import List, NamedTuple, Tuple
 
 from .layer import GaussianDistribution, Layer, WeightDistribution
 from .eventprop_cpp import (
     compute_spikes_batch_cpp,
     backward_spikes_batch_cpp,
     SpikesVector,
+    compute_voltage_trace_cpp,
+    compute_lambda_i_cpp,
+    compute_lambda_i_trace_cpp,
 )
 from . import eventprop_cpp
 
@@ -41,7 +44,7 @@ class LIFLayer(Layer):
         self.post_batch = None
         self.gradient = np.zeros_like(self.w_in)
 
-    def forward(self, input_batch: SpikesVector):
+    def forward(self, input_batch: SpikesVector) -> SpikesVector:
         super().forward(input_batch)
         self.post_batch, self.dead_fraction = compute_spikes_batch_cpp(
             self.w_in,
@@ -68,48 +71,55 @@ class LIFLayer(Layer):
 
     def get_voltage_trace_for_neuron(
         self,
+        batch_idx: int,
         target_nrn_idx: int,
         t_max: float = 1.0,
         dt: float = 1e-4,
-        code: str = "python",
-    ) -> np.array:
-        if self.w_in is None:
-            raise RuntimeError("Set weights first!")
+    ) -> Tuple[np.ndarray, np.ndarray]:
         if not self._ran_forward:
             raise RuntimeError("Run forward first!")
-        ts = np.arange(0, t_max, step=dt)
-        if code == "python":
-            v = np.zeros_like(ts)
-            for t_idx, t in enumerate(ts):
-                v[t_idx] = self._v(t, target_nrn_idx)
-            return ts, v
-        elif code == "cpp":
-            raise NotImplementedError()
+        return compute_voltage_trace_cpp(
+            t_max,
+            dt,
+            target_nrn_idx,
+            self.w_in,
+            self.input_batch[batch_idx],
+            self.parameters.v_th,
+            self.parameters.tau_mem,
+            self.parameters.tau_syn,
+        )
 
     def zero_grad(self):
         self.gradient[:] = 0
 
     def get_lambda_i_trace_for_neuron(
         self,
+        batch_idx: int,
         target_nrn_idx: int,
         t_max: float = 1.0,
         dt: float = 1e-4,
-        code: str = "cpp",
-    ) -> np.array:
-        if code == "python":
-            raise NotImplementedError()
-        elif code == "cpp":
-            trace = self._lif_cpp.get_lambda_i_trace(target_nrn_idx, t_max, dt=dt)
-            ts = np.linspace(0, t_max, len(trace))
-            return ts, trace
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        return compute_lambda_i_trace_cpp(
+            t_max,
+            dt,
+            target_nrn_idx,
+            self.post_batch[batch_idx],
+            self.parameters.v_th,
+            self.parameters.tau_mem,
+            self.parameters.tau_syn,
+        )
 
     def get_lambda_i_for_neuron(
-        self, target_nrn_idx: int, t: float, code: str = "cpp"
+        self, batch_idx: int, target_nrn_idx: int, t: float
     ) -> float:
-        if code == "python":
-            raise NotImplementedError()
-        elif code == "cpp":
-            return self._lif_cpp.lambda_i(t, target_nrn_idx)
+        return compute_lambda_i_cpp(
+            t,
+            target_nrn_idx,
+            self.post_batch[batch_idx],
+            self.parameters.v_th,
+            self.parameters.tau_mem,
+            self.parameters.tau_syn,
+        )
 
     def _i(self, t: float, target_nrn_idx: int) -> float:
         idxs = np.argwhere(self.input_spikes.times <= t)

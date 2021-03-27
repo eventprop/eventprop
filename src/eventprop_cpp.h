@@ -58,6 +58,9 @@ PYBIND11_MAKE_OPAQUE(std::vector<Spikes>);
 PYBIND11_MAKE_OPAQUE(std::vector<Maxima>);
 
 std::pair<RowMatrixXd, RowMatrixXd> compute_sums(Eigen::Ref<RowMatrixXd const> w, Spikes const& spikes, double tau_mem, double tau_syn);
+std::pair<Eigen::ArrayXd, Eigen::ArrayXd> compute_voltage_trace(double t_max, double dt, int target_nrn_idx, Eigen::Ref<RowMatrixXd const> w, Spikes const& spikes, double v_th, double tau_mem, double tau_syn);
+double compute_lambda_i(double t, int target_nrn_idx, Spikes const& post_spikes, double v_th, double tau_mem, double tau_syn);
+std::pair<Eigen::ArrayXd, Eigen::ArrayXd> compute_lambda_i_trace(double t_max, double dt, int target_nrn_idx, Spikes const& post_spikes, double v_th, double tau_mem, double tau_syn);
 Spikes
 compute_spikes(Eigen::Ref<RowMatrixXd const> w, Spikes const &spikes,
                double v_th, double tau_mem, double tau_syn);
