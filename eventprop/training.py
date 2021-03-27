@@ -123,6 +123,20 @@ class AbstractTraining(ABC):
     ):
         self.reset_results()
         for iteration in range(self.gd_parameters.iterations):
+            if valid_results_every is not None:
+                if iteration % valid_results_every == 0:
+                    logging.debug("Getting valid accuracy.")
+                    self.valid()
+                    logging.info(
+                        f"Validation accuracy in iteration {iteration}: {self.valid_accuracies[-1]}."
+                    )
+            if test_results_every is not None:
+                if iteration % test_results_every == 0:
+                    logging.debug("Getting test accuracy.")
+                    self.test()
+                    logging.info(
+                        f"Test accuracy in iteration {iteration}: {self.test_accuracies[-1]}."
+                    )
             minibatch = self._get_minibatch()
             self.forward_and_backward(minibatch)
             if train_results_every is not None:
@@ -145,20 +159,6 @@ class AbstractTraining(ABC):
                     logging.debug(f"Decaying learning rate by {self.lr_decay_gamma}.")
                     self.optimizer.parameters = self.optimizer.parameters._replace(
                         lr=self.optimizer.parameters.lr * self.lr_decay_gamma
-                    )
-            if valid_results_every is not None:
-                if iteration % valid_results_every == 0:
-                    logging.debug("Getting valid accuracy.")
-                    self.valid()
-                    logging.info(
-                        f"Validation accuracy in iteration {iteration}: {self.valid_accuracies[-1]}."
-                    )
-            if test_results_every is not None:
-                if iteration % test_results_every == 0:
-                    logging.debug("Getting test accuracy.")
-                    self.test()
-                    logging.info(
-                        f"Test accuracy in iteration {iteration}: {self.test_accuracies[-1]}."
                     )
             if save_to is not None:
                 if iteration % save_every == 0:
