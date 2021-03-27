@@ -63,12 +63,15 @@ class TTFSCrossEntropyLoss(Layer):
     def get_accuracy(self, labels: np.ndarray):
         t_labels = self.first_spike_times[self._batch_idxs, labels]
         return np.mean(
-            np.all(
-                np.logical_or(
-                    self.first_spike_times >= t_labels[:, None],
-                    np.isnan(self.first_spike_times),
+            np.logical_and(
+                ~np.isnan(t_labels),
+                np.all(
+                    np.logical_or(
+                        self.first_spike_times >= t_labels[:, None],
+                        np.isnan(self.first_spike_times),
+                    ),
+                    axis=1,
                 ),
-                axis=1,
             )
         )
 
