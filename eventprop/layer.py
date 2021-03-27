@@ -36,7 +36,7 @@ class WeightDistribution(ABC):
 
     def __post_init__(self):
         if self.seed is not None:
-            self.rng = np.random.RandomState(self.seed)
+            self.rng = np.random.default_rng(self.seed)
         else:
             self.rng = np.random
 

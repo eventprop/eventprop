@@ -91,7 +91,8 @@ class MNISTMixin:
             test_path_images_raw, test_path_labels_raw, 10000
         )
         test_shuffle_idxs = np.arange(10000)
-        np.random.shuffle(test_shuffle_idxs)
+        tmp_rng = np.random.default_rng(0)
+        tmp_rng.shuffle(test_shuffle_idxs)
         test_images = test_images[test_shuffle_idxs]
         test_labels = test_labels[test_shuffle_idxs]
 
