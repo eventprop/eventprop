@@ -1,3 +1,6 @@
+from eventprop.layer import GaussianDistribution
+from eventprop.lif_layer import LIFLayerParameters
+from eventprop.loss_layer import TTFSCrossEntropyLossParameters
 import logging
 from time import sleep
 from dask.distributed import Client, LocalCluster
