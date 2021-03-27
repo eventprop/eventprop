@@ -6,7 +6,45 @@ import numpy as np
 import matplotlib.pyplot as plt
 from os.path import join
 
-from eventprop.yinyang import do_single_run, dir_path
+from eventprop.yinyang import YinYangTTFS, dir_path
+
+
+def do_single_run_ttfs(seed, save_to):
+    np.random.seed(seed)
+    yin = YinYangTTFS(
+        loss_parameters=TTFSCrossEntropyLossParameters(
+            n=3, alpha=0.01, tau0=0.002, tau1=0.01
+        ),
+        output_parameters=LIFLayerParameters(
+            n=3,
+            n_in=200,
+            tau_mem=20e-3,
+            tau_syn=5e-3,
+            v_th=1,
+            v_leak=0,
+            w_dist=GaussianDistribution(seed, 0.4, 0.4),
+        ),
+        hidden_parameters=LIFLayerParameters(
+            n=200,
+            n_in=5,
+            tau_mem=20e-3,
+            tau_syn=5e-3,
+            v_th=1,
+            v_leak=0,
+            w_dist=GaussianDistribution(seed, 2, 1),
+        ),
+        weight_increase_threshold_output=0,
+        weight_increase_threshold_hidden=0.15,
+        weight_increase_bump=1e-4,
+        lr_decay_gamma=1,
+    )
+    yin.train(
+        test_results_every=None,
+        valid_results_every=100,
+        save_to=save_to,
+        save_every=100,
+    )
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
@@ -15,7 +53,7 @@ if __name__ == "__main__":
     seeds = 10
     results = list()
     for seed in range(seeds):
-        results.append(client.submit(do_single_run, seed, f"yinyang_{seed}.pkl"))
+        results.append(client.submit(do_single_run_ttfs, seed, f"yinyang_{seed}.pkl"))
     while not all([x.done() for x in results]):
         sleep(0.1)
 
