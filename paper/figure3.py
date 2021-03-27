@@ -50,8 +50,8 @@ def do_single_run_ttfs(seed, save_to):
         lr_decay_gamma=1,
     )
     mnist.train(
-        test_every=int(60000 / 256),
-        valid_every=None,
+        test_results_every=int(60000 / 256),
+        valid_results_every=None,
         save_to=save_to,
         save_every=1000,
         save_final_weights_only=True,
@@ -86,8 +86,8 @@ def do_single_run_vmax(seed, save_to):
         lr_decay_gamma=1,
     )
     mnist.train(
-        test_every=int(60000 / 256),
-        valid_every=None,
+        test_results_every=int(60000 / 256),
+        valid_results_every=None,
         save_to=save_to,
         save_every=1000,
         save_final_weights_only=True,

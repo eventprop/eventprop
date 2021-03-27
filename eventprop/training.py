@@ -117,22 +117,27 @@ class AbstractTraining(ABC):
         save_to: str = None,
         save_every: int = None,
         save_final_weights_only: bool = False,
-        test_every: int = 100,
-        valid_every: int = 100,
+        train_results_every: int = 1,
+        test_results_every: int = 100,
+        valid_results_every: int = 100,
     ):
         self.reset_results()
         for iteration in range(self.gd_parameters.iterations):
             minibatch = self._get_minibatch()
             self.forward_and_backward(minibatch)
-            batch_loss = np.nanmean(self.loss.get_losses(minibatch.labels))
-            batch_accuracy = self.loss.get_accuracy(minibatch.labels)
-            logging.debug(f"Training loss in iteration {iteration}: {batch_loss}")
-            logging.debug(
-                f"Training accuracy in iteration {iteration}: {batch_accuracy}"
-            )
+            if train_results_every is not None:
+                if iteration % train_results_every == 0:
+                    batch_loss = np.nanmean(self.loss.get_losses(minibatch.labels))
+                    batch_accuracy = self.loss.get_accuracy(minibatch.labels)
+                    logging.debug(
+                        f"Training loss in iteration {iteration}: {batch_loss}"
+                    )
+                    logging.debug(
+                        f"Training accuracy in iteration {iteration}: {batch_accuracy}"
+                    )
+                    self.losses.append(batch_loss)
+                    self.accuracies.append(batch_accuracy)
             self.process_dead_neurons()
-            self.losses.append(batch_loss)
-            self.accuracies.append(batch_accuracy)
             self.optimizer.step()
             self.optimizer.zero_grad()
             if self.lr_decay_step is not None and iteration > 0:
@@ -141,15 +146,15 @@ class AbstractTraining(ABC):
                     self.optimizer.parameters = self.optimizer.parameters._replace(
                         lr=self.optimizer.parameters.lr * self.lr_decay_gamma
                     )
-            if valid_every is not None:
-                if iteration % valid_every == 0:
+            if valid_results_every is not None:
+                if iteration % valid_results_every == 0:
                     logging.debug("Getting valid accuracy.")
                     self.valid()
                     logging.info(
                         f"Validation accuracy in iteration {iteration}: {self.valid_accuracies[-1]}."
                     )
-            if test_every is not None:
-                if iteration % test_every == 0:
+            if test_results_every is not None:
+                if iteration % test_results_every == 0:
                     logging.debug("Getting test accuracy.")
                     self.test()
                     logging.info(
