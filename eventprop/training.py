@@ -115,7 +115,8 @@ class AbstractTraining(ABC):
     def train(
         self,
         save_to: str = None,
-        save_every: int = 100,
+        save_every: int = None,
+        save_final_weights_only: bool = False,
         test_every: int = 100,
         valid_every: int = 100,
     ):
@@ -156,9 +157,14 @@ class AbstractTraining(ABC):
                     )
             if save_to is not None:
                 if iteration % save_every == 0:
-                    self.weights.append(self.get_weight_copy())
+                    if not save_final_weights_only:
+                        self.weights.append(self.get_weight_copy())
                     logging.debug(f"Saving results to {save_to}.")
                     self.save_to_file(save_to)
+        if save_to is not None:
+            self.weights.append(self.get_weight_copy())
+        logging.debug(f"Saving results to {save_to}.")
+        self.save_to_file(save_to)
         return self.test()
 
 
