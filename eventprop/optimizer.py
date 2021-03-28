@@ -29,7 +29,7 @@ class Optimizer(ABC):
 class GradientDescentParameters(NamedTuple):
     lr                 : float = 1e-4    # for adam/gd
     minibatch_size     : int   = 100
-    iterations         : int   = 1000
+    epochs             : int   = 100
     gradient_clip      : float = None
     beta1              : float = 0.9     # for adam
     beta2              : float = 0.999   # for adam

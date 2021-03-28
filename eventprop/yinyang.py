@@ -53,7 +53,7 @@ class YinYangTTFS(YinYangMixin, TwoLayerTTFS):
     def __init__(
         self,
         gd_parameters: GradientDescentParameters = GradientDescentParameters(
-            minibatch_size=200, iterations=30000, lr=1e-3, gradient_clip=None
+            minibatch_size=200, epochs=300, lr=1e-3, gradient_clip=None
         ),
         hidden_parameters: LIFLayerParameters = LIFLayerParameters(
             n_in=5,
@@ -87,7 +87,7 @@ class YinYangVMax(YinYangMixin, OneLayerVMax):
     def __init__(
         self,
         gd_parameters: GradientDescentParameters = GradientDescentParameters(
-            minibatch_size=200, iterations=30000, lr=1e-3, gradient_clip=None
+            minibatch_size=200, epochs=300, lr=1e-3, gradient_clip=None
         ),
         output_parameters: LIFLayerParameters = LIFLayerParameters(
             n_in=5,
@@ -107,4 +107,3 @@ class YinYangVMax(YinYangMixin, OneLayerVMax):
             loss_parameters=loss_parameters,
             **kwargs,
         )
-

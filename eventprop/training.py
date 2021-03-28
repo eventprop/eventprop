@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from copy import deepcopy
 import numpy as np
 import logging
-from typing import NamedTuple, Tuple, Type
+from typing import NamedTuple, Tuple, Iterator
 import pickle
 
 from .optimizer import GradientDescentParameters, Optimizer, Adam
@@ -30,26 +30,25 @@ class AbstractTraining(ABC):
         self.loss = self.loss_class(self.loss_parameters)
         self.optimizer = optimizer_class(self.loss, self.gd_parameters)
         self.load_data()
-        self.train_batch.shuffle()
-        self._minibatch_idx = 0
 
     @abstractmethod
     def load_data(self):
         pass
 
-    def _get_minibatch(self):
+    def _get_minibatch(self) -> Iterator[SpikeDataset]:
+        logging.debug("Shuffling training data.")
+        self.train_batch.shuffle()
         if self.gd_parameters.minibatch_size is None:
-            return self.train_batch
+            yield self.train_batch
         else:
-            samples = self.train_batch[
-                self._minibatch_idx : self._minibatch_idx
-                + self.gd_parameters.minibatch_size
-            ]
-            self._minibatch_idx += self.gd_parameters.minibatch_size
-            self._minibatch_idx %= len(self.train_batch)
-            return samples
+            minibatch_idx = 0
+            while minibatch_idx < len(self.train_batch):
+                yield self.train_batch[
+                    minibatch_idx : minibatch_idx + self.gd_parameters.minibatch_size
+                ]
+                minibatch_idx += self.gd_parameters.minibatch_size
 
-    def _get_results_for_set(self, dataset: SpikeDataset):
+    def _get_results_for_set(self, dataset: SpikeDataset) -> Tuple[float, float]:
         self.forward(dataset)
         accuracy = self.loss.get_accuracy(dataset.labels)
         losses = self.loss.get_losses(dataset.labels)
@@ -57,13 +56,13 @@ class AbstractTraining(ABC):
         logging.debug(f"Got loss: {np.mean(losses)}.")
         return np.nanmean(losses), accuracy
 
-    def valid(self):
+    def valid(self) -> Tuple[float, float]:
         valid_loss, valid_accuracy = self._get_results_for_set(self.valid_batch)
         self.valid_accuracies.append(valid_accuracy)
         self.valid_losses.append(valid_loss)
         return valid_loss, valid_accuracy
 
-    def test(self):
+    def test(self) -> Tuple[float, float]:
         test_loss, test_accuracy = self._get_results_for_set(self.test_batch)
         self.test_accuracies.append(test_accuracy)
         self.test_losses.append(test_loss)
@@ -117,51 +116,48 @@ class AbstractTraining(ABC):
         save_to: str = None,
         save_every: int = None,
         save_final_weights_only: bool = False,
-        train_results_every: int = 1,
-        test_results_every: int = 100,
-        valid_results_every: int = 100,
+        train_results_every_minibatch: bool = True,
+        test_results_every_epoch: bool = False,
+        valid_results_every_epoch: bool = False,
     ):
         self.reset_results()
-        for iteration in range(self.gd_parameters.iterations):
-            if valid_results_every is not None:
-                if iteration % valid_results_every == 0:
-                    logging.debug("Getting valid accuracy.")
-                    self.valid()
-                    logging.info(
-                        f"Validation accuracy in iteration {iteration}: {self.valid_accuracies[-1]}."
-                    )
-            if test_results_every is not None:
-                if iteration % test_results_every == 0:
-                    logging.debug("Getting test accuracy.")
-                    self.test()
-                    logging.info(
-                        f"Test accuracy in iteration {iteration}: {self.test_accuracies[-1]}."
-                    )
-            minibatch = self._get_minibatch()
-            self.forward_and_backward(minibatch)
-            if train_results_every is not None:
-                if iteration % train_results_every == 0:
+        for epoch in range(self.gd_parameters.epochs):
+            if valid_results_every_epoch:
+                logging.debug("Getting valid accuracy.")
+                self.valid()
+                logging.info(
+                    f"Validation accuracy in epoch {epoch}: {self.valid_accuracies[-1]}."
+                )
+            if test_results_every_epoch:
+                logging.debug("Getting test accuracy.")
+                self.test()
+                logging.info(
+                    f"Test accuracy in epoch {epoch}: {self.test_accuracies[-1]}."
+                )
+            for mb_idx, minibatch in enumerate(self._get_minibatch()):
+                self.forward_and_backward(minibatch)
+                if train_results_every_minibatch is not None:
                     batch_loss = np.nanmean(self.loss.get_losses(minibatch.labels))
                     batch_accuracy = self.loss.get_accuracy(minibatch.labels)
                     logging.debug(
-                        f"Training loss in iteration {iteration}: {batch_loss}"
+                        f"Training loss in epoch {epoch}, minibatch {mb_idx}: {batch_loss}"
                     )
                     logging.debug(
-                        f"Training accuracy in iteration {iteration}: {batch_accuracy}"
+                        f"Training accuracy in epoch {epoch}, minibatch {mb_idx}: {batch_accuracy}"
                     )
                     self.losses.append(batch_loss)
                     self.accuracies.append(batch_accuracy)
-            self.process_dead_neurons()
-            self.optimizer.step()
-            self.optimizer.zero_grad()
-            if self.lr_decay_step is not None and iteration > 0:
-                if iteration % self.lr_decay_step == 0:
+                self.process_dead_neurons()
+                self.optimizer.step()
+                self.optimizer.zero_grad()
+            if self.lr_decay_step is not None and epoch > 0:
+                if epoch % self.lr_decay_step == 0:
                     logging.debug(f"Decaying learning rate by {self.lr_decay_gamma}.")
                     self.optimizer.parameters = self.optimizer.parameters._replace(
                         lr=self.optimizer.parameters.lr * self.lr_decay_gamma
                     )
             if save_to is not None:
-                if iteration % save_every == 0:
+                if epoch % save_every == 0:
                     if not save_final_weights_only:
                         self.weights.append(self.get_weight_copy())
                     logging.debug(f"Saving results to {save_to}.")

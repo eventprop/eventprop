@@ -136,7 +136,7 @@ class TwoLayerMNISTTTFS(MNISTMixin, TwoLayerTTFS):
     def __init__(
         self,
         gd_parameters: GradientDescentParameters = GradientDescentParameters(
-            minibatch_size=256, iterations=30000, lr=1e-3, gradient_clip=None
+            minibatch_size=256, epochs=100, lr=1e-3, gradient_clip=None
         ),
         hidden_parameters: LIFLayerParameters = LIFLayerParameters(
             n_in=784,
@@ -174,7 +174,7 @@ class OneLayerMNISTVMax(MNISTMixin, OneLayerVMax):
     def __init__(
         self,
         gd_parameters: GradientDescentParameters = GradientDescentParameters(
-            minibatch_size=256, iterations=30000, lr=1e-3, gradient_clip=None
+            minibatch_size=256, epochs=100, lr=1e-3, gradient_clip=None
         ),
         output_parameters: LIFLayerParameters = LIFLayerParameters(
             n_in=784,
@@ -208,7 +208,7 @@ class TwoLayerMNISTVMax(MNISTMixin, TwoLayerVMax):
     def __init__(
         self,
         gd_parameters: GradientDescentParameters = GradientDescentParameters(
-            minibatch_size=256, iterations=30000, lr=1e-3, gradient_clip=None
+            minibatch_size=256, epochs=100, lr=1e-3, gradient_clip=None
         ),
         hidden_parameters: LIFLayerParameters = LIFLayerParameters(
             n_in=784,
@@ -216,7 +216,9 @@ class TwoLayerMNISTVMax(MNISTMixin, TwoLayerVMax):
             tau_mem=20e-3,
             tau_syn=5e-3,
             w_dist=GaussianDistribution(
-                w_mean=8 * 1 / np.sqrt(784), w_std=4 / np.sqrt(784)
+                # w_mean=8 * 1 / np.sqrt(784), w_std=4 / np.sqrt(784)
+                w_mean=np.cos(np.pi / 2) * 10 / np.sqrt(784),
+                w_std=np.sin(np.pi / 2) * 10 / np.sqrt(784),
             ),
         ),
         output_parameters: LIFLayerParameters = LIFLayerParameters(
@@ -225,7 +227,9 @@ class TwoLayerMNISTVMax(MNISTMixin, TwoLayerVMax):
             tau_mem=20e-3,
             tau_syn=5e-3,
             w_dist=GaussianDistribution(
-                w_mean=4 * 1 / np.sqrt(100), w_std=2 * 1 / np.sqrt(100)
+                # w_mean=4 * 1 / np.sqrt(100), w_std=2 * 1 / np.sqrt(100)
+                w_mean=np.cos(np.pi / 2) * 1 / np.sqrt(100),
+                w_std=np.sin(np.pi / 2) * 1 / np.sqrt(100),
             ),
         ),
         loss_parameters: VMaxCrossEntropyLossParameters = VMaxCrossEntropyLossParameters(
@@ -234,7 +238,8 @@ class TwoLayerMNISTVMax(MNISTMixin, TwoLayerVMax):
             tau_mem=20e-3,
             tau_syn=5e-3,
             w_dist=GaussianDistribution(
-                w_mean=0.25 * 1 / np.sqrt(100), w_std=0.25 * 1 / np.sqrt(100)
+                w_mean=np.cos(0) * 10 / np.sqrt(100),
+                w_std=np.sin(0) * 10 / np.sqrt(100),
             ),
         ),
         **kwargs,
@@ -250,7 +255,6 @@ class TwoLayerMNISTVMax(MNISTMixin, TwoLayerVMax):
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
-    mnist = TwoLayerMNISTVMax(
-        weight_increase_threshold_output=0.2, weight_increase_bump=1e-4
-    )
-    mnist.train(test_every=None, valid_every=None)
+    np.random.seed(0)
+    mnist = TwoLayerMNISTTTFS()
+    mnist.train(test_results_every_epoch=False, valid_results_every_epoch=False)

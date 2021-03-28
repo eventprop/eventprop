@@ -16,54 +16,12 @@ from eventprop.mnist import OneLayerMNISTVMax, TwoLayerMNISTTTFS
 from eventprop.training import GradientDescentParameters
 
 
-def do_single_run_ttfs(seed, save_to):
-    np.random.seed(seed)
-    mnist = TwoLayerMNISTTTFS(
-        gd_parameters=GradientDescentParameters(
-            minibatch_size=256,
-            iterations=int(60000 / 256) * 100,
-            lr=1e-3,
-            gradient_clip=None,
-        ),
-        loss_parameters=TTFSCrossEntropyLossParameters(
-            n=10,
-            alpha=0.0006,
-            tau0=0.0027,
-            tau1=0.0086,
-        ),
-        output_parameters=LIFLayerParameters(
-            n=10,
-            n_in=350,
-            tau_mem=20e-3,
-            tau_syn=5e-3,
-            w_dist=GaussianDistribution(seed, 0.0, 0.036),
-        ),
-        hidden_parameters=LIFLayerParameters(
-            n=350,
-            n_in=784,
-            tau_mem=20e-3,
-            tau_syn=5e-3,
-            w_dist=GaussianDistribution(seed, 0, 0.71),
-        ),
-        weight_increase_threshold_output=0.24,
-        weight_increase_bump=1e-5,
-        lr_decay_gamma=1,
-    )
-    mnist.train(
-        test_results_every=int(60000 / 256),
-        valid_results_every=None,
-        save_to=save_to,
-        save_every=1000,
-        save_final_weights_only=True,
-    )
-
-
 def do_single_run_vmax(seed, save_to):
     np.random.seed(seed)
     mnist = OneLayerMNISTVMax(
         gd_parameters=GradientDescentParameters(
             minibatch_size=256,
-            iterations=int(60000 / 256) * 100,
+            epochs=100,
             lr=1e-3,
             gradient_clip=None,
         ),
@@ -86,8 +44,8 @@ def do_single_run_vmax(seed, save_to):
         lr_decay_gamma=1,
     )
     mnist.train(
-        test_results_every=int(60000 / 256),
-        valid_results_every=None,
+        test_results_every_epoch=True,
+        valid_results_every_epoch=False,
         save_to=save_to,
         save_every=1000,
         save_final_weights_only=True,
@@ -96,16 +54,9 @@ def do_single_run_vmax(seed, save_to):
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
-    cluster = LocalCluster(n_workers=10, threads_per_worker=1, memory_limit="8GB")
+    cluster = LocalCluster(n_workers=10, threads_per_worker=1, memory_limit="512GB")
     client = Client(cluster)
     seeds = 10
-    results = list()
-    for seed in range(seeds):
-        fname = f"mnist_ttfs_{seed}.pkl"
-        if not exists(fname):
-            results.append(client.submit(do_single_run_ttfs, seed, fname))
-    while not all([x.done() for x in results]):
-        sleep(0.1)
     results = list()
     for seed in range(seeds):
         fname = f"mnist_vmax_{seed}.pkl"
