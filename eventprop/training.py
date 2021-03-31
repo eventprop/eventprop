@@ -136,7 +136,7 @@ class AbstractTraining(ABC):
                 )
             for mb_idx, minibatch in enumerate(self._get_minibatch()):
                 self.forward_and_backward(minibatch)
-                if train_results_every_minibatch is not None:
+                if train_results_every_minibatch:
                     batch_loss = np.nanmean(self.loss.get_losses(minibatch.labels))
                     batch_accuracy = self.loss.get_accuracy(minibatch.labels)
                     logging.debug(
