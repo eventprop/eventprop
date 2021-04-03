@@ -1,3 +1,5 @@
+from typing import Tuple
+
 from .layer import Layer
 from .training import AbstractTwoLayer, AbstractOneLayer
 from .lif_layer import LIFLayer, LIFLayerParameters
@@ -19,21 +21,5 @@ class OneLayerVMax(AbstractOneLayer):
             **kwargs,
         )
 
-
-class TwoLayerVMax(AbstractTwoLayer):
-    def __init__(
-        self,
-        hidden_parameters: LIFLayerParameters = LIFLayerParameters(),
-        output_parameters: LIFLayerParameters = LIFLayerParameters(),
-        loss_parameters: VMaxCrossEntropyLossParameters = VMaxCrossEntropyLossParameters(),
-        **kwargs,
-    ):
-        super().__init__(
-            hidden_layer_class=LIFLayer,
-            output_layer_class=LIFLayer,
-            loss_class=VMaxCrossEntropyLoss,
-            hidden_parameters=hidden_parameters,
-            output_parameters=output_parameters,
-            loss_parameters=loss_parameters,
-            **kwargs,
-        )
+    def get_weight_copy(self) -> Tuple:
+        return (self.output_layer.w_in.copy(), self.loss.w_in.copy())
