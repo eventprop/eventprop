@@ -15,9 +15,9 @@ dir_path = os.path.join(
 
 
 class YinYangMixin:
-    t_min: float = 10e-3
-    t_max: float = 40e-3
-    t_bias: float = 20e-3
+    t_min: float = 0e-3
+    t_max: float = 30e-3
+    t_bias: float = 0e-3
 
     def load_data(self):
         train_samples = np.load(os.path.join(dir_path, "train_samples.npy"))
