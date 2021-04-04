@@ -8,7 +8,7 @@ from dask.distributed import Client, LocalCluster
 import pickle
 import numpy as np
 import matplotlib.pyplot as plt
-from os.path import join
+from os.path import join, exists
 
 from eventprop.yinyang import YinYangTTFS, dir_path
 
@@ -60,77 +60,97 @@ if __name__ == "__main__":
     seeds = 10
     results = list()
     for seed in range(seeds):
-        results.append(client.submit(do_single_run_ttfs, seed, f"yinyang_{seed}.pkl"))
+        fname = join(dir_path, f"yinyang_{seed}.pkl")
+        if not exists(fname):
+            results.append(client.submit(do_single_run_ttfs, seed, fname))
     while not all([x.done() for x in results]):
         sleep(0.1)
 
-    valid_labels = np.load(join(dir_path, "validation_labels.npy"))
-    valid_samples = np.load(join(dir_path, "validation_samples.npy"))
+    test_labels = np.load(join(dir_path, "test_labels.npy"))
+    test_samples = np.load(join(dir_path, "test_samples.npy"))
 
-    all_valid_losses = list()
-    all_valid_errors = list()
+    all_test_losses = list()
+    all_test_errors = list()
     normalized_times_0 = list()
     normalized_times_1 = list()
     normalized_times_2 = list()
     for idx in range(10):
-        _, _, _, _, _, accs, losses, first_times, _ = pickle.load(open(f"yinyang_{idx}.pkl", "rb"))
+        _, _, accs, losses, first_spikes, _, _, _, _ = pickle.load(
+            open(join(dir_path, f"yinyang_{idx}.pkl"), "rb")
+        )
         errors = 1 - np.array(accs)
-        all_valid_errors.append(errors)
-        all_valid_losses.append(losses)
+        all_test_errors.append(errors)
+        all_test_losses.append(losses)
         if idx == 0:
-            for patterns in first_times[-1]:
-                all_times = [x.time for x in patterns if x is not None]
-                if len(all_times) == 0:
-                    normalized_times_0.append(np.nan)
-                    normalized_times_1.append(np.nan)
-                    normalized_times_2.append(np.nan)
-                    continue
-                min_time = min([x.time for x in patterns if x is not None])
-                def get_time(x):
-                    if x is None:
-                        return np.nan
-                    else:
-                        return x.time - min_time
-                normalized_times_0.append(get_time(patterns[0]))
-                normalized_times_1.append(get_time(patterns[1]))
-                normalized_times_2.append(get_time(patterns[2]))
+            for all_times in first_spikes[-1]:
+                min_time = np.nanmin(all_times)
+                get_time = lambda x: np.nan if np.isnan(x) else x - min_time
+
+                normalized_times_0.append(get_time(all_times[0]))
+                normalized_times_1.append(get_time(all_times[1]))
+                normalized_times_2.append(get_time(all_times[2]))
 
     def plot_times(times, fname):
-        plt.figure(figsize=(4,3))
-        for x, y, val in zip(valid_samples[:,0], valid_samples[:,1], times):
+        times = np.array(times)
+        plt.figure(figsize=(4, 3))
+        added_label = False
+        for x, y, val in zip(test_samples[:, 0], test_samples[:, 1], times):
             if np.isnan(val):
-                plt.scatter(x,y,color="black",marker="x", alpha=0.5)
-        plt.scatter(valid_samples[:,0], valid_samples[:,1], c=times, cmap="inferno_r", edgecolors="black", vmin=0,vmax=0.03)
-        cbar=plt.colorbar(ticks=[0,0.03], label="$\\Delta t$ [$t_\\mathrm{max}-t_\\mathrm{min}$]")
+                plt.scatter(
+                    x,
+                    y,
+                    color="green",
+                    marker="x",
+                    alpha=0.3,
+                    label="Late or Missing Spike" if not added_label else None,
+                )
+                added_label = True
+        min_mask = times == 0
+        plt.scatter(
+            test_samples[:, 0][~min_mask],
+            test_samples[:, 1][~min_mask],
+            c=np.array(times)[~min_mask],
+            cmap="inferno_r",
+            marker="x",
+            vmin=0,
+            vmax=0.03,
+        )
+        plt.scatter(
+            test_samples[:, 0][min_mask],
+            test_samples[:, 1][min_mask],
+            c=np.array(times)[min_mask],
+            cmap="inferno_r",
+            marker="o",
+            edgecolors="black",
+            vmin=0,
+            vmax=0.03,
+            label="First Spike",
+        )
+        cbar = plt.colorbar(ticks=[0, 0.03], label="$\\Delta t$ [$t_\\mathrm{max}$]")
         cbar.set_ticklabels(["0", "1"])
-        plt.xticks([0,1])
-        plt.yticks([0,1])
+        plt.xticks([0, 1])
+        plt.yticks([0, 1])
         plt.xlabel("x")
         plt.ylabel("y")
+        plt.legend()
         plt.savefig(fname)
+
     plot_times(normalized_times_0, "delta_t_0.pdf")
     plot_times(normalized_times_1, "delta_t_1.pdf")
     plot_times(normalized_times_2, "delta_t_2.pdf")
 
-    plt.figure(figsize=(4,3))
-    for errors in all_valid_errors:
+    plt.figure(figsize=(4, 3))
+    for errors in all_test_errors:
         plt.plot(errors, "k-", alpha=0.1)
-    plt.plot(np.mean(all_valid_errors, axis=0))
+    plt.plot(np.mean(all_test_errors, axis=0))
     plt.ylim(0.01, 1)
     plt.yscale("log")
     plt.xlabel("Epoch")
-    plt.ylabel("Validation Error")
+    plt.ylabel("Test Error")
     plt.savefig("yinyang_errors.pdf")
-    print(f"Error statistics: {np.mean(np.array(all_valid_errors)[:, -1])} +- {np.std(np.array(all_valid_errors)[:, -1])}")
-    print(f"Accuracy statistics: {np.mean(1-np.array(all_valid_errors)[:, -1])} +- {np.std(1-np.array(all_valid_errors)[:, -1])}")
-
-    plt.figure(figsize=(4,3))
-    for losses in all_valid_losses:
-        plt.plot(losses, "k-", alpha=0.1)
-    plt.plot(np.mean(all_valid_losses, axis=0))
-    plt.ylim(0.1, 2)
-    plt.yticks([0.1, 1])
-    plt.yscale("log")
-    plt.xlabel("Epoch")
-    plt.ylabel("Validation Loss")
-    plt.savefig("yinyang_loss.pdf")
+    print(
+        f"Error statistics: {np.mean(np.array(all_test_errors)[:, -1])} +- {np.std(np.array(all_test_errors)[:, -1])}"
+    )
+    print(
+        f"Accuracy statistics: {np.mean(1-np.array(all_test_errors)[:, -1])*100:.2f} +- {np.std(1-np.array(all_test_errors)[:, -1])*100:.2f}"
+    )
