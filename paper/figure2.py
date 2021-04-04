@@ -1,6 +1,7 @@
 from eventprop.layer import GaussianDistribution
 from eventprop.lif_layer import LIFLayerParameters
 from eventprop.loss_layer import TTFSCrossEntropyLossParameters
+from eventprop.optimizer import GradientDescentParameters
 import logging
 from time import sleep
 from dask.distributed import Client, LocalCluster
@@ -15,8 +16,9 @@ from eventprop.yinyang import YinYangTTFS, dir_path
 def do_single_run_ttfs(seed, save_to):
     np.random.seed(seed)
     yin = YinYangTTFS(
+            gd_parameters=GradientDescentParameters(lr=1e-2,epochs=300,minibatch_size=256),
         loss_parameters=TTFSCrossEntropyLossParameters(
-            n=3, alpha=0.01, tau0=0.002, tau1=0.01
+            n=3, alpha=0.003, tau0=0.0005, tau1=0.0064
         ),
         output_parameters=LIFLayerParameters(
             n=3,
@@ -25,7 +27,7 @@ def do_single_run_ttfs(seed, save_to):
             tau_syn=5e-3,
             v_th=1,
             v_leak=0,
-            w_dist=GaussianDistribution(seed, 0.4, 0.4),
+            w_dist=GaussianDistribution(seed, 0.93, 0.1),
         ),
         hidden_parameters=LIFLayerParameters(
             n=200,
@@ -34,24 +36,25 @@ def do_single_run_ttfs(seed, save_to):
             tau_syn=5e-3,
             v_th=1,
             v_leak=0,
-            w_dist=GaussianDistribution(seed, 2, 1),
+            w_dist=GaussianDistribution(seed, 1.5, 0.78),
         ),
-        weight_increase_threshold_output=0,
-        weight_increase_threshold_hidden=0.15,
-        weight_increase_bump=1e-4,
-        lr_decay_gamma=1,
+        weight_increase_threshold_output=0.24,
+        weight_increase_threshold_hidden=0.51,
+        weight_increase_bump=0,#0.042,
+        lr_decay_gamma=0.95,
+        lr_decay_step=5,
     )
     yin.train(
-        test_results_every_epoch=False,
-        valid_results_every_epoch=True,
+        test_results_every_epoch=True,
+        valid_results_every_epoch=False,
         train_results_every_minibatch=False,
         save_to=save_to,
-        save_every=100,
+        save_every=10,
     )
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.INFO)
     cluster = LocalCluster(n_workers=10, threads_per_worker=1)
     client = Client(cluster)
     seeds = 10
