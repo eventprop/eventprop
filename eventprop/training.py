@@ -35,7 +35,7 @@ class AbstractTraining(ABC):
     def load_data(self):
         pass
 
-    def _get_minibatch(self) -> Iterator[SpikeDataset]:
+    def _training_data(self) -> Iterator[SpikeDataset]:
         logging.debug("Shuffling training data.")
         self.train_batch.shuffle()
         if self.gd_parameters.minibatch_size is None:
@@ -134,7 +134,7 @@ class AbstractTraining(ABC):
                 logging.info(
                     f"Test accuracy in epoch {epoch}: {self.test_accuracies[-1]}."
                 )
-            for mb_idx, minibatch in enumerate(self._get_minibatch()):
+            for mb_idx, minibatch in enumerate(self._training_data()):
                 self.forward_and_backward(minibatch)
                 if train_results_every_minibatch:
                     batch_loss = np.nanmean(self.loss.get_losses(minibatch.labels))
