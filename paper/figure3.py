@@ -12,7 +12,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from os.path import join, exists
 
-from eventprop.mnist import OneLayerMNISTVMax, TwoLayerMNISTTTFS
+from eventprop.mnist import OneLayerMNISTVMax
 from eventprop.training import GradientDescentParameters
 
 
@@ -20,9 +20,9 @@ def do_single_run_vmax(seed, save_to):
     np.random.seed(seed)
     mnist = OneLayerMNISTVMax(
         gd_parameters=GradientDescentParameters(
-            minibatch_size=256,
+            minibatch_size=128,
             epochs=100,
-            lr=1e-3,
+            lr=5e-3,
             gradient_clip=None,
         ),
         loss_parameters=VMaxCrossEntropyLossParameters(
@@ -30,18 +30,19 @@ def do_single_run_vmax(seed, save_to):
             n_in=350,
             tau_mem=20e-3,
             tau_syn=5e-3,
-            w_dist=GaussianDistribution(seed, 0.0048, 0.0024),
+            w_dist=GaussianDistribution(seed, 0.2, 0.37),
         ),
         output_parameters=LIFLayerParameters(
             n=350,
             n_in=784,
             tau_mem=20e-3,
             tau_syn=5e-3,
-            w_dist=GaussianDistribution(seed, 0.038, 0.34),
+            w_dist=GaussianDistribution(seed, 0.065*1., 0.045*1.),
         ),
-        weight_increase_threshold_output=1.0,
-        weight_increase_bump=0,
-        lr_decay_gamma=1,
+        weight_increase_threshold_output=1.,
+        weight_increase_bump=6.9e-5,
+        lr_decay_gamma=0.97,
+        lr_decay_step=1,
     )
     mnist.train(
         test_results_every_epoch=True,

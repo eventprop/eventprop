@@ -9,7 +9,6 @@ import struct
 
 from eventprop.vmax_training import (
     OneLayerVMax,
-    TwoLayerVMax,
     VMaxCrossEntropyLossParameters,
 )
 from eventprop.loss_layer import TTFSCrossEntropyLossParameters
@@ -198,55 +197,6 @@ class OneLayerMNISTVMax(MNISTMixin, OneLayerVMax):
     ):
         super().__init__(
             gd_parameters=gd_parameters,
-            output_parameters=output_parameters,
-            loss_parameters=loss_parameters,
-            **kwargs,
-        )
-
-
-class TwoLayerMNISTVMax(MNISTMixin, TwoLayerVMax):
-    def __init__(
-        self,
-        gd_parameters: GradientDescentParameters = GradientDescentParameters(
-            minibatch_size=256, epochs=100, lr=1e-3, gradient_clip=None
-        ),
-        hidden_parameters: LIFLayerParameters = LIFLayerParameters(
-            n_in=784,
-            n=100,
-            tau_mem=20e-3,
-            tau_syn=5e-3,
-            w_dist=GaussianDistribution(
-                # w_mean=8 * 1 / np.sqrt(784), w_std=4 / np.sqrt(784)
-                w_mean=np.cos(np.pi / 2) * 10 / np.sqrt(784),
-                w_std=np.sin(np.pi / 2) * 10 / np.sqrt(784),
-            ),
-        ),
-        output_parameters: LIFLayerParameters = LIFLayerParameters(
-            n_in=100,
-            n=100,
-            tau_mem=20e-3,
-            tau_syn=5e-3,
-            w_dist=GaussianDistribution(
-                # w_mean=4 * 1 / np.sqrt(100), w_std=2 * 1 / np.sqrt(100)
-                w_mean=np.cos(np.pi / 2) * 1 / np.sqrt(100),
-                w_std=np.sin(np.pi / 2) * 1 / np.sqrt(100),
-            ),
-        ),
-        loss_parameters: VMaxCrossEntropyLossParameters = VMaxCrossEntropyLossParameters(
-            n=10,
-            n_in=100,
-            tau_mem=20e-3,
-            tau_syn=5e-3,
-            w_dist=GaussianDistribution(
-                w_mean=np.cos(0) * 10 / np.sqrt(100),
-                w_std=np.sin(0) * 10 / np.sqrt(100),
-            ),
-        ),
-        **kwargs,
-    ):
-        super().__init__(
-            gd_parameters=gd_parameters,
-            hidden_parameters=hidden_parameters,
             output_parameters=output_parameters,
             loss_parameters=loss_parameters,
             **kwargs,
