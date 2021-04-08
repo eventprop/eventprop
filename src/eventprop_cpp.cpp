@@ -197,11 +197,6 @@ compute_spikes(Eigen::Ref<RowMatrixXd const> w, Spikes const &spikes,
         if (i == n_spikes) {
           t_pre = inf;
         } else {
-          if (i < n_spikes-1) {
-            if (times[i] == times[i+1]) {
-              continue;
-            }
-          }
           t_pre = times[i];
         }
         tmax = get_tmax(i, target_nrn_idx);
