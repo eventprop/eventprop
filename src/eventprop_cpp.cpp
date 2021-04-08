@@ -565,9 +565,16 @@ std::vector<Spikes> jitter_spikes(std::vector<Spikes> const& spikes, double sigm
   std::normal_distribution<> dist{0, sigma_jitter};
   for (auto const& elem: spikes) {
     jittered_spikes.push_back(elem);
+    Eigen::Ref<Eigen::ArrayXd> times_copy = jittered_spikes.back().times;
     for (int i=0; i<elem.n_spikes; i++) {
-      jittered_spikes.back().times[i] += dist(gen);
+      times_copy[i] += dist(gen);
     }
+    std::vector<int> sort_idxs(elem.n_spikes);
+    std::iota(sort_idxs.begin(), sort_idxs.end(), 0);
+    std::sort(sort_idxs.begin(), sort_idxs.end(), [&](int a, int b) {return times_copy[a] < times_copy[b]; });
+    jittered_spikes.back().times = times_copy(sort_idxs);
+    jittered_spikes.back().sources = jittered_spikes.back().sources(sort_idxs);
+
   }
   return jittered_spikes;
 }
