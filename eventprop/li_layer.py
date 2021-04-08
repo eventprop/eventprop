@@ -1,14 +1,13 @@
 import numpy as np
-from typing import NamedTuple, List, Iterable
+from typing import NamedTuple, Tuple
 
 from .layer import GaussianDistribution, Layer, WeightDistribution
 from .eventprop_cpp import (
-    Spikes,
-    Maxima,
     MaximaVector,
     SpikesVector,
     compute_maxima_batch_cpp,
     backward_maxima_batch_cpp,
+    compute_voltage_trace_cpp,
 )
 
 # fmt: off
@@ -57,6 +56,26 @@ class LILayer(Layer):
         )
         self._ran_backward = True
         super().backward()
+
+    def get_voltage_trace_for_neuron(
+        self,
+        batch_idx: int,
+        target_nrn_idx: int,
+        t_max: float = 1.0,
+        dt: float = 1e-4,
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        if not self._ran_forward:
+            raise RuntimeError("Run forward first!")
+        return compute_voltage_trace_cpp(
+            t_max,
+            dt,
+            target_nrn_idx,
+            self.w_in,
+            self.input_batch[batch_idx],
+            np.inf,
+            self.parameters.tau_mem,
+            self.parameters.tau_syn,
+        )
 
     def zero_grad(self):
         self.gradient[:] = 0
