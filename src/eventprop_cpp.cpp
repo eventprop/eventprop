@@ -570,15 +570,21 @@ std::vector<Spikes> jitter_spikes(std::vector<Spikes> const& spikes, double sigm
     for (int i=0; i<elem.n_spikes; i++) {
       new_times[i] += dist(gen);
     }
-    for (int i=0; i<elem.n_spikes-1; i++) {
-      if (new_times[i+1] < new_times[i]) {
-        double tmp_time = new_times[i+1];
-        new_times[i+1] = new_times[i];
-        new_times[i] = tmp_time;
-        int tmp_src = new_sources[i+1];
-        new_sources[i+1] = new_sources[i];
-        new_sources[i] = tmp_src;
-        i = 0;
+    bool sorted = false;
+    while (not sorted) {
+      for (int i=0; i<elem.n_spikes-1; i++) {
+        if (new_times[i+1] < new_times[i]) {
+          double tmp_time = new_times[i+1];
+          new_times[i+1] = new_times[i];
+          new_times[i] = tmp_time;
+          int tmp_src = new_sources[i+1];
+          new_sources[i+1] = new_sources[i];
+          new_sources[i] = tmp_src;
+          break;
+        }
+        if (i == elem.n_spikes-2) {
+          sorted = true;
+        }
       }
     }
   }
