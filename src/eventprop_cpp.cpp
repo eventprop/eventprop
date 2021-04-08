@@ -565,16 +565,22 @@ std::vector<Spikes> jitter_spikes(std::vector<Spikes> const& spikes, double sigm
   std::normal_distribution<> dist{0, sigma_jitter};
   for (auto const& elem: spikes) {
     jittered_spikes.push_back(elem);
-    Eigen::Ref<Eigen::ArrayXd> times_copy = jittered_spikes.back().times;
+    Eigen::Ref<Eigen::ArrayXd> new_times = jittered_spikes.back().times;
+    Eigen::Ref<Eigen::ArrayXi> new_sources = jittered_spikes.back().sources;
     for (int i=0; i<elem.n_spikes; i++) {
-      times_copy[i] += dist(gen);
+      new_times[i] += dist(gen);
     }
-    std::vector<int> sort_idxs(elem.n_spikes);
-    std::iota(sort_idxs.begin(), sort_idxs.end(), 0);
-    std::sort(sort_idxs.begin(), sort_idxs.end(), [&](int a, int b) {return times_copy[a] < times_copy[b]; });
-    jittered_spikes.back().times = times_copy(sort_idxs);
-    jittered_spikes.back().sources = jittered_spikes.back().sources(sort_idxs);
-
+    for (int i=0; i<elem.n_spikes-1; i++) {
+      if (new_times[i+1] < new_times[i]) {
+        double tmp_time = new_times[i+1];
+        new_times[i+1] = new_times[i];
+        new_times[i] = tmp_time;
+        int tmp_src = new_sources[i+1];
+        new_sources[i+1] = new_sources[i];
+        new_sources[i] = tmp_src;
+        i = 0;
+      }
+    }
   }
   return jittered_spikes;
 }
