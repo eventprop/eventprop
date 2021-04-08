@@ -10,6 +10,7 @@
 #include <cmath>
 #include <cstdio>
 #include <functional>
+#include <random>
 
 using namespace pybind11::literals;
 
@@ -557,6 +558,19 @@ backward_maxima_batch(std::vector<Spikes> &input_batch, std::vector<Maxima> cons
   }
 }
 
+std::vector<Spikes> jitter_spikes(std::vector<Spikes> const& spikes, double sigma_jitter) {
+  std::vector<Spikes> jittered_spikes;
+  std::random_device rd{};
+  std::mt19937 gen{rd()};
+  std::normal_distribution<> dist{0, sigma_jitter};
+  for (auto const& elem: spikes) {
+    jittered_spikes.push_back(elem);
+    for (int i=0; i<elem.n_spikes; i++) {
+      jittered_spikes.back().times[i] += dist(gen);
+    }
+  }
+  return jittered_spikes;
+}
 
 PYBIND11_MODULE(eventprop_cpp, m) {
   py::class_<Spikes>(m, "Spikes")
@@ -624,5 +638,6 @@ PYBIND11_MODULE(eventprop_cpp, m) {
            "gradient"_a.noconvert(), "tau_mem"_a, "tau_syn"_a)
   .def("compute_voltage_trace_cpp", &compute_voltage_trace, "t_max"_a, "dt"_a, "target_nrn_idx"_a, "w"_a.noconvert(), "spikes"_a, "v_th"_a, "tau_mem"_a, "tau_syn"_a)
   .def("compute_lambda_i_cpp", &compute_lambda_i, "t"_a, "target_nrn_idx"_a, "post_spikes"_a, "v_th"_a, "tau_mem"_a, "tau_syn"_a)
-  .def("compute_lambda_i_trace_cpp", &compute_lambda_i_trace, "t_max"_a, "dt"_a, "target_nrn_idx"_a, "post_spikes"_a, "v_th"_a, "tau_mem"_a, "tau_syn"_a);
+  .def("compute_lambda_i_trace_cpp", &compute_lambda_i_trace, "t_max"_a, "dt"_a, "target_nrn_idx"_a, "post_spikes"_a, "v_th"_a, "tau_mem"_a, "tau_syn"_a)
+  .def("jitter_spikes_cpp", &jitter_spikes, "spikes"_a.noconvert(), "sigma_jitter"_a);
 };

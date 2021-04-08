@@ -7,6 +7,7 @@ import pickle
 
 from .optimizer import GradientDescentParameters, Optimizer, Adam
 from .layer import Layer, SpikeDataset
+from .eventprop_cpp import jitter_spikes_cpp
 
 
 class AbstractTraining(ABC):
@@ -35,15 +36,22 @@ class AbstractTraining(ABC):
     def load_data(self):
         pass
 
-    def _training_data(self) -> Iterator[SpikeDataset]:
+    def _training_data(self, sigma_jitter: float = 0) -> Iterator[SpikeDataset]:
         logging.debug("Shuffling training data.")
-        self.train_batch.shuffle()
+        if sigma_jitter == 0:
+            train_batch = self.train_batch
+        else:
+            train_batch = SpikeDataset(
+                jitter_spikes_cpp(self.train_batch.spikes, sigma_jitter),
+                self.train_batch.labels,
+            )
+        train_batch.shuffle()
         if self.gd_parameters.minibatch_size is None:
-            yield self.train_batch
+            yield train_batch
         else:
             minibatch_idx = 0
             while minibatch_idx < len(self.train_batch):
-                yield self.train_batch[
+                yield train_batch[
                     minibatch_idx : minibatch_idx + self.gd_parameters.minibatch_size
                 ]
                 minibatch_idx += self.gd_parameters.minibatch_size
@@ -126,13 +134,13 @@ class AbstractTraining(ABC):
                 logging.debug("Getting valid accuracy.")
                 self.valid()
                 logging.info(
-                    f"Validation accuracy in epoch {epoch}: {self.valid_accuracies[-1]}."
+                    f"Validation accuracy, loss in epoch {epoch}: {self.valid_accuracies[-1]}, {self.valid_losses[-1]}."
                 )
             if test_results_every_epoch:
                 logging.debug("Getting test accuracy.")
                 self.test()
                 logging.info(
-                    f"Test accuracy in epoch {epoch}: {self.test_accuracies[-1]}."
+                    f"Test accuracy, loss in epoch {epoch}: {self.test_accuracies[-1]}, {self.test_losses[-1]}."
                 )
             for mb_idx, minibatch in enumerate(self._training_data()):
                 self.forward_and_backward(minibatch)
