@@ -17,7 +17,10 @@ class SpikeDataset:
         assert len(self.spikes) == self.labels.size
 
     def __getitem__(self, key):
-        return SpikeDataset(self.spikes[key], self.labels[key])
+        if isinstance(key, int):
+            return self.spikes[key], self.labels[key]
+        else:
+            return SpikeDataset(self.spikes[key], self.labels[key])
 
     def __len__(self):
         return len(self.spikes)
