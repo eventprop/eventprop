@@ -139,6 +139,11 @@ class VMaxCrossEntropyLoss(LILayer):
         ]
         return loss
 
+    def get_predictions(self) -> np.ndarray:
+        if not self._ran_forward:
+            raise RuntimeError("Run forward first!")
+        return np.array([np.argmax(maxima.values) for maxima in self.maxima_batch])
+
     def get_accuracy(self, labels: np.ndarray):
         return np.mean(
             [
