@@ -25,10 +25,18 @@ train_path_images_raw = os.path.join(dir_path, "train-images-idx3-ubyte.gz")
 train_path_labels_raw = os.path.join(dir_path, "train-labels-idx1-ubyte.gz")
 test_path_images_raw = os.path.join(dir_path, "t10k-images-idx3-ubyte.gz")
 test_path_labels_raw = os.path.join(dir_path, "t10k-labels-idx1-ubyte.gz")
-train_images_url = "http://yann.lecun.com/exdb/mnist/train-images-idx3-ubyte.gz"
-train_labels_url = "http://yann.lecun.com/exdb/mnist/train-labels-idx1-ubyte.gz"
-test_images_url = "http://yann.lecun.com/exdb/mnist/t10k-images-idx3-ubyte.gz"
-test_labels_url = "http://yann.lecun.com/exdb/mnist/t10k-labels-idx1-ubyte.gz"
+train_images_url = (
+    "https://storage.googleapis.com/cvdf-datasets/mnist/train-images-idx3-ubyte.gz"
+)
+train_labels_url = (
+    "https://storage.googleapis.com/cvdf-datasets/mnist/train-labels-idx1-ubyte.gz"
+)
+test_images_url = (
+    "https://storage.googleapis.com/cvdf-datasets/mnist/t10k-images-idx3-ubyte.gz"
+)
+test_labels_url = (
+    "https://storage.googleapis.com/cvdf-datasets/mnist/t10k-labels-idx1-ubyte.gz"
+)
 all_paths = [
     train_path_images_raw,
     train_path_labels_raw,
@@ -131,44 +139,6 @@ class MNISTMixin:
             pickle.dump(valid_batch, f)
 
 
-class TwoLayerMNISTTTFS(MNISTMixin, TwoLayerTTFS):
-    def __init__(
-        self,
-        gd_parameters: GradientDescentParameters = GradientDescentParameters(
-            minibatch_size=256, epochs=100, lr=1e-3, gradient_clip=None
-        ),
-        hidden_parameters: LIFLayerParameters = LIFLayerParameters(
-            n_in=784,
-            n=100,
-            tau_mem=20e-3,
-            tau_syn=5e-3,
-            w_dist=GaussianDistribution(
-                w_mean=4 * 1 / np.sqrt(700), w_std=2 * 1 / np.sqrt(700)
-            ),
-        ),
-        output_parameters: LIFLayerParameters = LIFLayerParameters(
-            n_in=100,
-            n=10,
-            tau_mem=20e-3,
-            tau_syn=5e-3,
-            w_dist=GaussianDistribution(
-                w_mean=1 / np.sqrt(100), w_std=1 / np.sqrt(100)
-            ),
-        ),
-        loss_parameters: TTFSCrossEntropyLossParameters = TTFSCrossEntropyLossParameters(
-            n=10,
-        ),
-        **kwargs,
-    ):
-        super().__init__(
-            gd_parameters=gd_parameters,
-            hidden_parameters=hidden_parameters,
-            output_parameters=output_parameters,
-            loss_parameters=loss_parameters,
-            **kwargs,
-        )
-
-
 class OneLayerMNISTVMax(MNISTMixin, OneLayerVMax):
     def __init__(
         self,
@@ -201,10 +171,3 @@ class OneLayerMNISTVMax(MNISTMixin, OneLayerVMax):
             loss_parameters=loss_parameters,
             **kwargs,
         )
-
-
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
-    np.random.seed(0)
-    mnist = TwoLayerMNISTTTFS()
-    mnist.train(test_results_every_epoch=False, valid_results_every_epoch=False)
