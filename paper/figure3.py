@@ -24,6 +24,7 @@ def do_single_run_vmax(seed, save_to):
             epochs=100,
             lr=5e-3,
             gradient_clip=None,
+            sigma_jitter=1e-3,
         ),
         loss_parameters=VMaxCrossEntropyLossParameters(
             n=10,
