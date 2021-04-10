@@ -16,7 +16,9 @@ from eventprop.yinyang import YinYangTTFS, dir_path
 def do_single_run_ttfs(seed, save_to):
     np.random.seed(seed)
     yin = YinYangTTFS(
-            gd_parameters=GradientDescentParameters(lr=1e-2,epochs=300,minibatch_size=256),
+        gd_parameters=GradientDescentParameters(
+            lr=1e-2, epochs=300, minibatch_size=256
+        ),
         loss_parameters=TTFSCrossEntropyLossParameters(
             n=3, alpha=0.003, tau0=0.0005, tau1=0.0064
         ),
@@ -38,9 +40,6 @@ def do_single_run_ttfs(seed, save_to):
             v_leak=0,
             w_dist=GaussianDistribution(seed, 1.5, 0.78),
         ),
-        weight_increase_threshold_output=0.24,
-        weight_increase_threshold_hidden=0.51,
-        weight_increase_bump=0,#0.042,
         lr_decay_gamma=0.95,
         lr_decay_step=5,
     )
