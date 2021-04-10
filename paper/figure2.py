@@ -148,6 +148,17 @@ if __name__ == "__main__":
     plt.xlabel("Epoch")
     plt.ylabel("Test Error")
     plt.savefig("yinyang_errors.pdf")
+
+    plt.figure(figsize=(4, 3))
+    for losses in all_test_losses:
+        plt.plot(losses, "k-", alpha=0.1)
+    plt.plot(np.mean(all_test_losses, axis=0))
+    plt.ylim(0.1, 2)
+    plt.yticks([0.1, 1])
+    plt.yscale("log")
+    plt.xlabel("Epoch")
+    plt.ylabel("Test Loss")
+    plt.savefig("yinyang_loss.pdf")
     print(
         f"Error statistics: {np.mean(np.array(all_test_errors)[:, -1])} +- {np.std(np.array(all_test_errors)[:, -1])}"
     )
