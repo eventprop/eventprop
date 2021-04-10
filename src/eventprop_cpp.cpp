@@ -558,7 +558,7 @@ backward_maxima_batch(std::vector<Spikes> &input_batch, std::vector<Maxima> cons
   }
 }
 
-std::vector<Spikes> jitter_spikes(std::vector<Spikes> const& spikes, double sigma_jitter, int random_seed) {
+std::vector<Spikes> jitter_spikes(std::vector<Spikes> const& spikes, double sigma_jitter, unsigned int random_seed) {
   std::vector<Spikes> jittered_spikes;
   std::mt19937 gen{random_seed};
   std::normal_distribution<> dist{0, sigma_jitter};

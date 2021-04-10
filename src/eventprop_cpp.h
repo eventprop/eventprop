@@ -82,4 +82,4 @@ std::vector<Maxima>
 compute_maxima_batch(Eigen::Ref<RowMatrixXd const> w, std::vector<Spikes> const& batch, double tau_mem, double tau_syn);
 void
 backward_maxima_batch(std::vector<Spikes> &input_batch, std::vector<Maxima> const& maxima, Eigen::Ref<RowMatrixXd const> w, Eigen::Ref<RowMatrixXd> gradient, double tau_mem, double tau_syn);
-std::vector<Spikes> jitter_spikes(std::vector<Spikes> const& spikes, double sigma_jitter);
+std::vector<Spikes> jitter_spikes(std::vector<Spikes> const& spikes, double sigma_jitter, unsigned int random_seed);

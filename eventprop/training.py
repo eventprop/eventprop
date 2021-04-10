@@ -45,7 +45,7 @@ class AbstractTraining(ABC):
                 jitter_spikes_cpp(
                     self.train_batch.spikes,
                     self.gd_parameters.sigma_jitter,
-                    np.random.get_state(legacy=False)["pos"],
+                    np.random.get_state(legacy=True)[1][0],
                 ),
                 self.train_batch.labels,
             )
