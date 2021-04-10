@@ -43,7 +43,9 @@ class AbstractTraining(ABC):
         else:
             train_batch = SpikeDataset(
                 jitter_spikes_cpp(
-                    self.train_batch.spikes, self.gd_parameters.sigma_jitter
+                    self.train_batch.spikes,
+                    self.gd_parameters.sigma_jitter,
+                    np.random.get_state(legacy=False)["pos"],
                 ),
                 self.train_batch.labels,
             )

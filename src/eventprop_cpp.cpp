@@ -558,10 +558,9 @@ backward_maxima_batch(std::vector<Spikes> &input_batch, std::vector<Maxima> cons
   }
 }
 
-std::vector<Spikes> jitter_spikes(std::vector<Spikes> const& spikes, double sigma_jitter) {
+std::vector<Spikes> jitter_spikes(std::vector<Spikes> const& spikes, double sigma_jitter, int random_seed) {
   std::vector<Spikes> jittered_spikes;
-  std::random_device rd{};
-  std::mt19937 gen{rd()};
+  std::mt19937 gen{random_seed};
   std::normal_distribution<> dist{0, sigma_jitter};
   for (auto const& elem: spikes) {
     jittered_spikes.push_back(elem);
@@ -658,5 +657,5 @@ PYBIND11_MODULE(eventprop_cpp, m) {
   .def("compute_voltage_trace_cpp", &compute_voltage_trace, "t_max"_a, "dt"_a, "target_nrn_idx"_a, "w"_a.noconvert(), "spikes"_a, "v_th"_a, "tau_mem"_a, "tau_syn"_a)
   .def("compute_lambda_i_cpp", &compute_lambda_i, "t"_a, "target_nrn_idx"_a, "post_spikes"_a, "v_th"_a, "tau_mem"_a, "tau_syn"_a)
   .def("compute_lambda_i_trace_cpp", &compute_lambda_i_trace, "t_max"_a, "dt"_a, "target_nrn_idx"_a, "post_spikes"_a, "v_th"_a, "tau_mem"_a, "tau_syn"_a)
-  .def("jitter_spikes_cpp", &jitter_spikes, "spikes"_a.noconvert(), "sigma_jitter"_a);
+  .def("jitter_spikes_cpp", &jitter_spikes, "spikes"_a.noconvert(), "sigma_jitter"_a, "random_seed"_a);
 };
