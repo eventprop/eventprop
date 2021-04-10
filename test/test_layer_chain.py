@@ -3,14 +3,19 @@ from numpy.testing import assert_almost_equal
 from itertools import product
 import unittest
 
-from eventprop.loss_layer import TTFSCrossEntropyLoss, TTFSCrossEntropyLossParameters
+from eventprop.loss_layer import (
+    TTFSCrossEntropyLoss,
+    TTFSCrossEntropyLossParameters,
+    VMaxCrossEntropyLoss,
+    VMaxCrossEntropyLossParameters,
+)
 from eventprop.lif_layer import LIFLayer, LIFLayerParameters
 from eventprop.eventprop_cpp import Spikes, SpikesVector
 from test_lif_layer import get_normalization_factor, get_poisson_spikes
 
 
 class LossLIFLIFChainTest(unittest.TestCase):
-    def test_gradient_vs_numerical_random(self):
+    def test_gradient_vs_numerical_random_ttfs(self):
         np.random.seed(0)
         n_in = 10
         n_upper = 5
@@ -82,6 +87,8 @@ class LossLIFLIFChainTest(unittest.TestCase):
         loss_layer = TTFSCrossEntropyLoss(loss_pars)
         loss_layer(lower_layer(upper_layer(input_spikes)))
         loss_layer.backward(labels)
+        grad_numerical_lower /= n_batch
+        grad_numerical_upper /= n_batch
         assert_almost_equal(grad_numerical_lower, lower_layer.gradient)
         assert_almost_equal(grad_numerical_upper, upper_layer.gradient)
 
@@ -103,7 +110,9 @@ class LossLIFLIFChainTest(unittest.TestCase):
         norm_factor = get_normalization_factor(upper_pars.tau_mem, upper_pars.tau_syn)
         w_upper = np.random.normal(0.2, 0.1, size=(n_in, n_upper)) * norm_factor
         w_lower = np.random.normal(0.2, 0.1, size=(n_upper, n_lower)) * norm_factor
-        w_vmax = np.random.normal(1, 1, size=(n_lower, n_lower))
+        w_vmax = -np.ones(
+            (n_lower, n_lower)
+        )  # np.random.normal(1, 1, size=(n_lower, n_lower))
         w_eps = 1e-6
         input_spikes = SpikesVector(
             [get_poisson_spikes(isi, t_max, n_in) for _ in range(n_batch)]
@@ -286,6 +295,7 @@ class LossLIFChainTest(unittest.TestCase):
         loss_layer = TTFSCrossEntropyLoss(loss_params)
         loss_layer(layer(input_spikes))
         loss_layer.backward(labels)
+        grad_numerical /= n_batch
         assert_almost_equal(grad_numerical, layer.gradient)
 
     def test_gradient_vs_numerical_single_post_spike(self):

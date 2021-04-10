@@ -55,7 +55,9 @@ class TTFSCrossEntropyLossTest(unittest.TestCase):
                     loss.forward(get_artificial_output(-t_eps, batch_idx, spike_idx))
                     loss_minus = loss.get_losses([label_neuron])[batch_idx]
 
-                    numerical_grads.append((loss_plus - loss_minus) / (2 * t_eps))
+                    numerical_grads.append(
+                        1 / 2 * (loss_plus - loss_minus) / (2 * t_eps)
+                    )
                 batch_numerical_grads.append(numerical_grads)
 
             loss = TTFSCrossEntropyLoss(params)
