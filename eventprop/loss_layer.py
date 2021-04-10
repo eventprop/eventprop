@@ -161,11 +161,17 @@ class VMaxCrossEntropyLoss(LILayer):
     def backward(self, labels: np.ndarray):
         if not self._ran_forward:
             raise RuntimeError("Run forward first!")
+        n_batch = len(self.maxima_batch)
         for batch_idx in range(len(self.input_batch)):
-            error = np.exp(self.maxima_batch[batch_idx].values) / self.sum0[batch_idx]
+            error = (
+                1
+                / n_batch
+                * np.exp(self.maxima_batch[batch_idx].values)
+                / self.sum0[batch_idx]
+            )
             for nrn_idx in range(self.parameters.n):
                 self.maxima_batch[batch_idx].set_error(nrn_idx, error[nrn_idx])
             self.maxima_batch[batch_idx].set_error(
-                labels[batch_idx], error[labels[batch_idx]] - 1
+                labels[batch_idx], error[labels[batch_idx]] - 1 / n_batch
             )
         super().backward()
