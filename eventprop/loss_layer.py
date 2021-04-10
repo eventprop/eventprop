@@ -87,10 +87,7 @@ class TTFSCrossEntropyLoss(Layer):
         # compute error for label neuron first
         t_labels = self.first_spike_times[self._batch_idxs, labels]
         exp_t_label = np.exp(-t_labels / tau0)
-        exp_t_label_squared = np.exp(-2 * t_labels / tau0)
-        label_error = -(1 / exp_t_label) * (
-            -exp_t_label / tau0 + exp_t_label_squared / (tau0 * sum0)
-        )
+        label_error = 1 / tau0 - exp_t_label / (tau0 * sum0)
         label_error += alpha / tau1 * np.exp(t_labels / tau1)
         for batch_idx in range(len(self.input_batch)):
             if not np.isnan(label_error[batch_idx]):
