@@ -17,7 +17,7 @@ class AbstractTraining(ABC):
         loss_class: Layer,
         loss_parameters: NamedTuple,
         gd_parameters: GradientDescentParameters = GradientDescentParameters(),
-        weight_increase_bump: float = 5e-3,
+        weight_increase_bump: float = 0,
         lr_decay_gamma: float = 0.95,
         lr_decay_step: int = 2000,
         optimizer_class: Optimizer = Adam,
