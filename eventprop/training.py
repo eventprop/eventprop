@@ -220,8 +220,8 @@ class AbstractTwoLayer(AbstractTraining):
         hidden_parameters: NamedTuple,
         output_parameters: NamedTuple,
         *args,
-        weight_increase_threshold_hidden: float = 0.3,
-        weight_increase_threshold_output: float = 0.0,
+        weight_increase_threshold_hidden: float = 1.0,
+        weight_increase_threshold_output: float = 1.0,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
