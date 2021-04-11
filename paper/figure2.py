@@ -46,7 +46,7 @@ def do_single_run_ttfs(seed, save_to):
     yin.train(
         test_results_every_epoch=True,
         valid_results_every_epoch=False,
-        train_results_every_minibatch=False,
+        train_results_every_epoch=False,
         save_to=save_to,
         save_every=10,
     )

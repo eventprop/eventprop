@@ -128,7 +128,7 @@ class AbstractTraining(ABC):
         save_to: str = None,
         save_every: int = None,
         save_final_weights_only: bool = False,
-        train_results_every_minibatch: bool = True,
+        train_results_every_epoch: bool = True,
         test_results_every_epoch: bool = False,
         valid_results_every_epoch: bool = False,
     ):
@@ -146,19 +146,15 @@ class AbstractTraining(ABC):
                 logging.info(
                     f"Test accuracy, loss in epoch {epoch}: {self.test_accuracies[-1]}, {self.test_losses[-1]}."
                 )
+            minibatch_losses = list()
+            minibatch_accuracies = list()
             for mb_idx, minibatch in enumerate(self._training_data()):
                 self.forward_and_backward(minibatch)
-                if train_results_every_minibatch:
+                if train_results_every_epoch:
                     batch_loss = np.nanmean(self.loss.get_losses(minibatch.labels))
                     batch_accuracy = self.loss.get_accuracy(minibatch.labels)
-                    logging.debug(
-                        f"Training loss in epoch {epoch}, minibatch {mb_idx}: {batch_loss}"
-                    )
-                    logging.debug(
-                        f"Training accuracy in epoch {epoch}, minibatch {mb_idx}: {batch_accuracy}"
-                    )
-                    self.losses.append(batch_loss)
-                    self.accuracies.append(batch_accuracy)
+                    minibatch_losses.append(batch_loss)
+                    minibatch_accuracies.append(batch_accuracy)
                 self.process_dead_neurons()
                 self.optimizer.step()
                 self.optimizer.zero_grad()
@@ -174,6 +170,15 @@ class AbstractTraining(ABC):
                         self.weights.append(self.get_weight_copy())
                     logging.debug(f"Saving results to {save_to}.")
                     self.save_to_file(save_to)
+            if train_results_every_epoch:
+                logging.debug(
+                    f"Training loss in epoch {epoch}: {np.mean(minibatch_losses)}"
+                )
+                logging.debug(
+                    f"Training accuracy in epoch {epoch}: {np.mean(minibatch_accuracies)}"
+                )
+                self.losses.append(np.mean(minibatch_losses))
+                self.accuracies.append(np.mean(minibatch_accuracies))
         if save_to is not None:
             self.weights.append(self.get_weight_copy())
             logging.debug(f"Saving results to {save_to}.")
