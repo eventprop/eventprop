@@ -172,7 +172,7 @@ class AbstractTraining(ABC):
                     self.save_to_file(save_to)
             if train_results_every_epoch:
                 logging.info(
-                    f"Training accuracy, loss in epoch {epoch}: {np.mean(minibatch_accuracies)}, {np.mean(minibatch_losses)}"
+                    f"Training accuracy, loss after epoch {epoch}: {np.mean(minibatch_accuracies)}, {np.mean(minibatch_losses)}"
                 )
                 self.losses.append(np.mean(minibatch_losses))
                 self.accuracies.append(np.mean(minibatch_accuracies))
