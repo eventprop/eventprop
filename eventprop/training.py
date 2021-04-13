@@ -138,13 +138,13 @@ class AbstractTraining(ABC):
                 logging.debug("Getting valid accuracy.")
                 self.valid()
                 logging.info(
-                    f"Validation accuracy, loss in epoch {epoch}: {self.valid_accuracies[-1]}, {self.valid_losses[-1]}."
+                    f"Validation accuracy, loss before epoch {epoch}: {self.valid_accuracies[-1]}, {self.valid_losses[-1]}."
                 )
             if test_results_every_epoch:
                 logging.debug("Getting test accuracy.")
                 self.test()
                 logging.info(
-                    f"Test accuracy, loss in epoch {epoch}: {self.test_accuracies[-1]}, {self.test_losses[-1]}."
+                    f"Test accuracy, loss before epoch {epoch}: {self.test_accuracies[-1]}, {self.test_losses[-1]}."
                 )
             minibatch_losses = list()
             minibatch_accuracies = list()
