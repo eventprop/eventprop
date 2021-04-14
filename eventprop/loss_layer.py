@@ -118,9 +118,13 @@ class TTFSCrossEntropyLoss(Layer):
 class VMaxCrossEntropyLoss(LILayer):
     def forward(self, input_batch: SpikesVector):
         super().forward(input_batch)
-        self.sum0 = [
-            np.sum(np.exp(self.maxima_batch[batch_idx].values))
+        masks = [
+            np.isnan(self.maxima_batch[batch_idx].times)
             for batch_idx in range(len(self.input_batch))
+        ]
+        self.sum0 = [
+            np.sum(np.exp(self.maxima_batch[batch_idx].values[~mask]))
+            for batch_idx, mask in enumerate(masks)
         ]
         self._ran_forward = True
 
@@ -135,6 +139,8 @@ class VMaxCrossEntropyLoss(LILayer):
                 np.exp(self.maxima_batch[batch_idx].values[labels[batch_idx]])
                 / self.sum0[batch_idx]
             )
+            if not np.isnan(self.maxima_batch[batch_idx].times[labels[batch_idx]])
+            else np.nan
             for batch_idx in range(len(self.input_batch))
         ]
         return loss
@@ -163,15 +169,25 @@ class VMaxCrossEntropyLoss(LILayer):
             raise RuntimeError("Run forward first!")
         n_batch = len(self.maxima_batch)
         for batch_idx in range(len(self.input_batch)):
-            error = (
-                1
-                / n_batch
-                * np.exp(self.maxima_batch[batch_idx].values)
-                / self.sum0[batch_idx]
-            )
             for nrn_idx in range(self.parameters.n):
-                self.maxima_batch[batch_idx].set_error(nrn_idx, error[nrn_idx])
-            self.maxima_batch[batch_idx].set_error(
-                labels[batch_idx], error[labels[batch_idx]] - 1 / n_batch
-            )
+                if np.isnan(self.maxima_batch[batch_idx].times[nrn_idx]):
+                    continue
+                if nrn_idx == labels[batch_idx]:
+                    error = (
+                        1
+                        / n_batch
+                        * (
+                            np.exp(self.maxima_batch[batch_idx].values[nrn_idx])
+                            / self.sum0[batch_idx]
+                            - 1
+                        )
+                    )
+                else:
+                    error = (
+                        1
+                        / n_batch
+                        * np.exp(self.maxima_batch[batch_idx].values[nrn_idx])
+                        / self.sum0[batch_idx]
+                    )
+                self.maxima_batch[batch_idx].set_error(nrn_idx, error)
         super().backward()
