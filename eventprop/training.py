@@ -7,7 +7,7 @@ import pickle
 
 from .optimizer import GradientDescentParameters, Optimizer, Adam
 from .layer import Layer, SpikeDataset
-from .eventprop_cpp import jitter_spikes_cpp
+from .eventprop_cpp import jitter_spikes_cpp, dropout_spikes_cpp
 
 
 class AbstractTraining(ABC):
@@ -48,6 +48,15 @@ class AbstractTraining(ABC):
                     np.random.get_state(legacy=True)[1][0],
                 ),
                 self.train_batch.labels,
+            )
+        if self.gd_parameters.input_dropout != 0:
+            train_batch = SpikeDataset(
+                dropout_spikes_cpp(
+                    train_batch.spikes,
+                    self.gd_parameters.input_dropout,
+                    np.random.get_state(legacy=True)[1][0],
+                ),
+                train_batch.labels,
             )
         train_batch.shuffle()
         if self.gd_parameters.minibatch_size is None:

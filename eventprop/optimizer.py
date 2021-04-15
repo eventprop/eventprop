@@ -35,6 +35,7 @@ class GradientDescentParameters(NamedTuple):
     beta2              : float = 0.999   # for adam
     epsilon            : float = 1e-8    # for adam
     sigma_jitter       : float = 0
+    input_dropout      : float = 0
 # fmt: on
 
 

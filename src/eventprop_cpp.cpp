@@ -590,6 +590,25 @@ std::vector<Spikes> jitter_spikes(std::vector<Spikes> const& spikes, double sigm
   return jittered_spikes;
 }
 
+
+std::vector<Spikes> dropout_spikes(std::vector<Spikes> const& spikes, double p_drop, unsigned int random_seed) {
+  std::vector<Spikes> dropped_spikes;
+  std::mt19937 gen{random_seed};
+  std::binomial_distribution dist{1, p_drop};
+  for (auto const& elem: spikes) {
+    std::vector<double> times;
+    std::vector<int> sources;
+    for (int i=0; i<elem.n_spikes; i++) {
+      if (dist(gen) == 0) {
+        times.push_back(elem.times[i]);
+        sources.push_back(elem.sources[i]);
+      }
+    }
+    dropped_spikes.push_back({Eigen::Map<Eigen::ArrayXd>(times.data(), times.size()), Eigen::Map<Eigen::ArrayXi>(sources.data(), sources.size())});
+  }
+  return dropped_spikes;
+}
+
 PYBIND11_MODULE(eventprop_cpp, m) {
   py::class_<Spikes>(m, "Spikes")
       .def(py::init<Eigen::ArrayXd, Eigen::ArrayXi>(), "times"_a.noconvert(),
@@ -657,5 +676,6 @@ PYBIND11_MODULE(eventprop_cpp, m) {
   .def("compute_voltage_trace_cpp", &compute_voltage_trace, "t_max"_a, "dt"_a, "target_nrn_idx"_a, "w"_a.noconvert(), "spikes"_a, "v_th"_a, "tau_mem"_a, "tau_syn"_a)
   .def("compute_lambda_i_cpp", &compute_lambda_i, "t"_a, "target_nrn_idx"_a, "post_spikes"_a, "v_th"_a, "tau_mem"_a, "tau_syn"_a)
   .def("compute_lambda_i_trace_cpp", &compute_lambda_i_trace, "t_max"_a, "dt"_a, "target_nrn_idx"_a, "post_spikes"_a, "v_th"_a, "tau_mem"_a, "tau_syn"_a)
-  .def("jitter_spikes_cpp", &jitter_spikes, "spikes"_a.noconvert(), "sigma_jitter"_a, "random_seed"_a);
+  .def("jitter_spikes_cpp", &jitter_spikes, "spikes"_a.noconvert(), "sigma_jitter"_a, "random_seed"_a)
+  .def("dropout_spikes_cpp", &dropout_spikes, "spikes"_a.noconvert(), "p_drop"_a, "random_seed"_a);
 };
