@@ -20,11 +20,12 @@ def do_single_run_vmax(seed, save_to):
     np.random.seed(seed)
     mnist = OneLayerMNISTVMax(
         gd_parameters=GradientDescentParameters(
-            minibatch_size=128,
+            minibatch_size=5,
             epochs=100,
-            lr=5e-3,
+            lr=1e-3,
             gradient_clip=None,
-            sigma_jitter=1e-3,
+            sigma_jitter=0e-3,
+            input_dropout=0.2,
         ),
         loss_parameters=VMaxCrossEntropyLossParameters(
             n=10,
@@ -38,16 +39,16 @@ def do_single_run_vmax(seed, save_to):
             n_in=784,
             tau_mem=20e-3,
             tau_syn=5e-3,
-            w_dist=GaussianDistribution(seed, 0.065 * 1.0, 0.045 * 1.0),
+            w_dist=GaussianDistribution(seed, 0.065 * 1.2, 0.045 * 1),
         ),
         weight_increase_threshold_output=1.0,
         weight_increase_bump=6.9e-5,
-        lr_decay_gamma=0.97,
+        lr_decay_gamma=0.95,
         lr_decay_step=1,
     )
     mnist.train(
-        valid_results_every_epoch=True,
-        test_results_every_epoch=False,
+        valid_results_every_epoch=False,
+        test_results_every_epoch=True,
         train_results_every_epoch=False,
         save_to=save_to,
         save_every=100,
