@@ -89,13 +89,22 @@ if __name__ == "__main__":
             for pred, label in zip(predictions, mnist.test_batch.labels):
                 confusion_matrix[pred, label] += 1
             confusion_matrix /= np.sum(confusion_matrix, axis=1)[None, :]
-            print(confusion_matrix)
             plt.figure(figsize=(4, 3))
-            sn.heatmap(confusion_matrix, annot=True, square=True, annot_kws={"size": 4})
-            # plt.colorbar()
+            sn.heatmap(
+                confusion_matrix,
+                annot=True,
+                square=True,
+                annot_kws={"size": 6},
+                cmap="inferno",
+                cbar_kws={"label": "Fraction of Test Samples"},
+                fmt=".2f",
+            )
+            plt.xlabel("Predicted Label")
+            plt.ylabel("Actual Label")
             plt.gca().set_aspect("equal")
+            plt.tight_layout()
             plt.savefig("mnist_confusion.pdf")
-            for sample_idx in range(2):
+            for sample_idx in range(3):
                 plt.figure(figsize=(4, 3))
                 spikes, label = mnist.test_batch[sample_idx]
                 for class_idx in range(10):
@@ -108,32 +117,20 @@ if __name__ == "__main__":
                     ts, vs = mnist.loss.get_voltage_trace_for_neuron(
                         sample_idx, class_idx, 0.05, dt=1e-5
                     )
-                    lines = plt.plot(ts, vs, label=f"{class_idx}")
-                    # plt.gca().annotate(
-                    #    f"{class_idx}",
-                    #    xy=(
-                    #        1,
-                    #        lines[0].get_ydata()[
-                    #            np.argmax(np.abs(lines[0].get_ydata()))
-                    #        ],
-                    #    ),
-                    #    xytext=(6, 0),
-                    #    color=lines[0].get_color(),
-                    #    xycoords=plt.gca().get_yaxis_transform(),
-                    #    textcoords="offset points",
-                    #    size=10,
-                    #    va="center",
-                    # )
+                    lines = plt.plot(
+                        ts, vs, label=f"{class_idx}"
+                    )  # , ls=ls, alpha=alpha)
                 plt.yticks([])
                 plt.xlabel("$t$ [s]")
                 plt.ylabel("V")
-                plt.legend()
+                plt.legend(title="Label")
                 plt.tight_layout()
                 plt.savefig(f"mnist_v_{sample_idx}.pdf")
                 plt.figure(figsize=(4, 4))
                 sample = np.full(784, np.nan)
                 sample[spikes.sources] = spikes.times
                 plt.imshow(sample.reshape((28, 28)))
+                plt.title(f"Label: {label}")
                 plt.gca().set_aspect("equal")
                 plt.savefig(f"mnist_sample_{sample_idx}.pdf")
 
