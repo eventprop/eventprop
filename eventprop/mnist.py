@@ -53,7 +53,7 @@ valid_path = os.path.join(dir_path, "mnist_valid.pkl")
 class MNISTMixin:
     valid_num: int = 5000
     t_min = 0
-    t_max = 30e-3
+    t_max = 20e-3
 
     def load_data(self):
         if not os.path.exists(dir_path):
