@@ -79,6 +79,9 @@ class Adam(Optimizer):
                 ancestor_layer._opt_adam_m = np.zeros_like(ancestor_layer.gradient)
             if not hasattr(ancestor_layer, "_opt_adam_v"):
                 ancestor_layer._opt_adam_v = np.zeros_like(ancestor_layer.gradient)
+            if not hasattr(ancestor_layer, "_opt_adam_i"):
+                ancestor_layer._opt_adam_i = 0
+            ancestor_layer._opt_adam_i += 1
             ancestor_layer._opt_adam_m = (
                 self.parameters.beta1 * ancestor_layer._opt_adam_m
                 + (1 - self.parameters.beta1) * ancestor_layer.gradient
@@ -87,8 +90,12 @@ class Adam(Optimizer):
                 self.parameters.beta2 * ancestor_layer._opt_adam_v
                 + (1 - self.parameters.beta2) * ancestor_layer.gradient ** 2
             )
-            m_hat = ancestor_layer._opt_adam_m / (1 - self.parameters.beta1)
-            v_hat = ancestor_layer._opt_adam_v / (1 - self.parameters.beta2)
+            m_hat = ancestor_layer._opt_adam_m / (
+                1 - self.parameters.beta1 ** ancestor_layer._opt_adam_i
+            )
+            v_hat = ancestor_layer._opt_adam_v / (
+                1 - self.parameters.beta2 ** ancestor_layer._opt_adam_i
+            )
             delta_w = m_hat / (np.sqrt(v_hat) + self.parameters.epsilon)
             norm_delta_w = np.linalg.norm(delta_w)
             if self.parameters.gradient_clip is not None:
