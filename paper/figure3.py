@@ -15,7 +15,6 @@ from os.path import join, exists
 from eventprop.mnist import OneLayerMNISTVMax
 from eventprop.training import GradientDescentParameters
 
-
 def do_single_run_vmax(seed, save_to):
     np.random.seed(seed)
     mnist = OneLayerMNISTVMax(
@@ -58,17 +57,12 @@ def do_single_run_vmax(seed, save_to):
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    cluster = LocalCluster(n_workers=10, threads_per_worker=1, memory_limit="512GB")
-    client = Client(cluster)
     seeds = 10
     results = list()
+
     for seed in range(seeds):
         fname = f"mnist_vmax_{seed}.pkl"
-        if not exists(fname):
-            results.append(client.submit(do_single_run_vmax, seed, fname))
-        # do_single_run_vmax(seed, "bla.pkl")
-    while not all([x.done() for x in results]):
-        sleep(0.1)
+        do_single_run_vmax(seed, fname)
 
     all_test_losses = list()
     all_test_errors = list()

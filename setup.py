@@ -15,6 +15,9 @@ cpp_ext = setuptools.Extension(
         "-fno-signed-zeros",
         "-funroll-loops",
     ],
+    extra_linker_args=[
+        "-ltbb -ltbbmalloc"
+    ],
 )
 
 yin_yang_dir = "eventprop/yin_yang_data_set/publication_data"

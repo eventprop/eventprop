@@ -1,5 +1,7 @@
 #include "eventprop_cpp.h"
 
+#define __APPLE__
+
 #ifndef __APPLE__
 #include <execution>
 #endif
