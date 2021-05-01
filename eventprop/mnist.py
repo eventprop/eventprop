@@ -143,7 +143,7 @@ class OneLayerMNISTVMax(MNISTMixin, OneLayerVMax):
     def __init__(
         self,
         gd_parameters: GradientDescentParameters = GradientDescentParameters(
-            minibatch_size=256, epochs=100, lr=1e-3, gradient_clip=None
+            minibatch_size=256, epochs=100, lr=1e-3,
         ),
         output_parameters: LIFLayerParameters = LIFLayerParameters(
             n_in=784,

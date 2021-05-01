@@ -29,7 +29,6 @@ class GradientDescentParameters(NamedTuple):
     lr                 : float = 1e-4    # for adam/gd
     minibatch_size     : int   = 100
     epochs             : int   = 100
-    gradient_clip      : float = None
     beta1              : float = 0.9     # for adam
     beta2              : float = 0.999   # for adam
     epsilon            : float = 1e-8    # for adam
@@ -95,12 +94,6 @@ class Adam(Optimizer):
                 1 - self.parameters.beta2 ** ancestor_layer._opt_adam_i
             )
             delta_w = m_hat / (np.sqrt(v_hat) + self.parameters.epsilon)
-            norm_delta_w = np.linalg.norm(delta_w)
-            if self.parameters.gradient_clip is not None:
-                if norm_delta_w > self.parameters.gradient_clip:
-                    delta_w = delta_w / norm_delta_w * self.parameters.gradient_clip
-            logging.debug(
-                f"Updating weights with delta_w norm {np.linalg.norm(delta_w)}."
-            )
+
             ancestor_layer.w_in += -self.parameters.lr * delta_w
             ancestor_layer = ancestor_layer.ancestor_layer

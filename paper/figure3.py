@@ -22,7 +22,6 @@ def do_single_run_vmax(seed, save_to):
             minibatch_size=5,
             epochs=100,
             lr=1e-3,
-            gradient_clip=None,
             sigma_jitter=0e-3,
             input_dropout=0.2,
         ),
