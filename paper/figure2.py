@@ -17,7 +17,7 @@ def do_single_run_ttfs(seed, save_to):
     np.random.seed(seed)
     yin = YinYangTTFS(
         gd_parameters=GradientDescentParameters(
-            lr=1e-2, epochs=300, minibatch_size=256
+            lr=5e-3, epochs=100, minibatch_size=16
         ),
         loss_parameters=TTFSCrossEntropyLossParameters(
             n=3, alpha=0.003, tau0=0.0005, tau1=0.0064
@@ -41,7 +41,7 @@ def do_single_run_ttfs(seed, save_to):
             w_dist=GaussianDistribution(seed, 1.5, 0.78),
         ),
         lr_decay_gamma=0.95,
-        lr_decay_step=5,
+        lr_decay_step=1,
     )
     yin.train(
         test_results_every_epoch=True,
@@ -88,6 +88,12 @@ if __name__ == "__main__":
                 normalized_times_0.append(get_time(all_times[0]))
                 normalized_times_1.append(get_time(all_times[1]))
                 normalized_times_2.append(get_time(all_times[2]))
+    print(
+        f"Error statistics: {np.mean(np.array(all_test_errors)[:, -1])} +- {np.std(np.array(all_test_errors)[:, -1])}"
+    )
+    print(
+        f"Accuracy statistics: {np.mean(1-np.array(all_test_errors)[:, -1])*100:.2f} +- {np.std(1-np.array(all_test_errors)[:, -1])*100:.2f}"
+    )
 
     def plot_times(times, fname):
         times = np.array(times)
@@ -158,9 +164,3 @@ if __name__ == "__main__":
     plt.xlabel("Epoch")
     plt.ylabel("Test Loss")
     plt.savefig("yinyang_loss.pdf")
-    print(
-        f"Error statistics: {np.mean(np.array(all_test_errors)[:, -1])} +- {np.std(np.array(all_test_errors)[:, -1])}"
-    )
-    print(
-        f"Accuracy statistics: {np.mean(1-np.array(all_test_errors)[:, -1])*100:.2f} +- {np.std(1-np.array(all_test_errors)[:, -1])*100:.2f}"
-    )
