@@ -288,16 +288,10 @@ compute_spikes(Eigen::Ref<RowMatrixXd const> w, Spikes const &spikes,
     all_sources_array(i) = all_post_spikes.at(i).second;
     all_currents_array(i) = all_post_spikes.at(i).first.second;
   }
-  double n_dead = 0;
-  for (auto t: first_spike_times) {
-    if (std::isnan(t)) {
-      n_dead += 1;
-    }
-  }
-  return {all_times_array, all_sources_array, all_currents_array, first_spike_times, first_spike_idxs, n_dead/static_cast<double>(n)};
+  return {all_times_array, all_sources_array, all_currents_array, first_spike_times, first_spike_idxs};
 }
 
-std::pair<std::vector<Spikes>, double>
+std::vector<Spikes>
 compute_spikes_batch(Eigen::Ref<RowMatrixXd const> w,
                      std::vector<Spikes> const &batch, double v_th,
                      double tau_mem, double tau_syn) {
@@ -307,12 +301,7 @@ compute_spikes_batch(Eigen::Ref<RowMatrixXd const> w,
     result.at(batch_idx) =
         compute_spikes(w, batch[batch_idx], v_th, tau_mem, tau_syn);
   }
-  double avg_dead_fraction = 0;
-  for (auto const& spikes : result) {
-    avg_dead_fraction += spikes.dead_fraction;
-  }
-  avg_dead_fraction /= (double)batch.size();
-  return {result, avg_dead_fraction};
+  return result;
 }
 
 std::pair<RowMatrixXd, Eigen::ArrayXd> backward(Spikes &input_spikes, Spikes const &post_spikes,

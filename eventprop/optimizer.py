@@ -15,7 +15,7 @@ class Optimizer(ABC):
     def zero_grad(self):
         ancestor_layer = self.loss
         while ancestor_layer is not None:
-            if hasattr(ancestor_layer.gradient):
+            if hasattr(ancestor_layer, "gradient"):
                 ancestor_layer.gradient[:] = 0
             ancestor_layer = ancestor_layer.ancestor_layer
 
@@ -50,7 +50,7 @@ class GradientDescent(Optimizer):
     def step(self):
         ancestor_layer = self.loss
         while ancestor_layer is not None:
-            if hasattr(ancestor_layer.gradient):
+            if hasattr(ancestor_layer, "gradient"):
                 ancestor_layer.w_in += -self.parameters.lr * ancestor_layer.gradient
             ancestor_layer = ancestor_layer.ancestor_layer
 
