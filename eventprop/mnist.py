@@ -8,15 +8,13 @@ import logging
 import struct
 
 from eventprop.vmax_training import (
-    OneLayerVMax,
+    TwoLayerVMax,
     VMaxCrossEntropyLossParameters,
 )
-from eventprop.loss_layer import TTFSCrossEntropyLossParameters
-from eventprop.ttfs_training import TwoLayerTTFS
 from eventprop.optimizer import GradientDescentParameters
 from eventprop.lif_layer import LIFLayerParameters
 from eventprop.eventprop_cpp import Spikes, SpikesVector
-from eventprop.layer import GaussianDistribution, SpikeDataset, UniformDistribution
+from eventprop.layer import GaussianDistribution, SpikeDataset
 
 
 dir_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "mnist_dataset")
@@ -139,13 +137,15 @@ class MNISTMixin:
             pickle.dump(valid_batch, f)
 
 
-class OneLayerMNISTVMax(MNISTMixin, OneLayerVMax):
+class TwoLayerMNISTVMax(MNISTMixin, TwoLayerVMax):
     def __init__(
         self,
         gd_parameters: GradientDescentParameters = GradientDescentParameters(
-            minibatch_size=256, epochs=100, lr=1e-3,
+            minibatch_size=256,
+            epochs=100,
+            lr=1e-3,
         ),
-        output_parameters: LIFLayerParameters = LIFLayerParameters(
+        hidden_parameters: LIFLayerParameters = LIFLayerParameters(
             n_in=784,
             n=100,
             tau_mem=20e-3,
@@ -167,7 +167,7 @@ class OneLayerMNISTVMax(MNISTMixin, OneLayerVMax):
     ):
         super().__init__(
             gd_parameters=gd_parameters,
-            output_parameters=output_parameters,
+            hidden_parameters=hidden_parameters,
             loss_parameters=loss_parameters,
             **kwargs,
         )

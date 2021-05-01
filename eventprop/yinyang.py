@@ -1,5 +1,5 @@
 from eventprop.loss_layer import VMaxCrossEntropyLossParameters
-from eventprop.vmax_training import OneLayerVMax
+from eventprop.vmax_training import TwoLayerVMax
 import numpy as np
 import os
 
@@ -53,7 +53,7 @@ class YinYangTTFS(YinYangMixin, TwoLayerTTFS):
     def __init__(
         self,
         gd_parameters: GradientDescentParameters = GradientDescentParameters(
-            minibatch_size=200, epochs=300, lr=1e-3, gradient_clip=None
+            minibatch_size=200, epochs=300, lr=1e-3
         ),
         hidden_parameters: LIFLayerParameters = LIFLayerParameters(
             n_in=5,
@@ -62,48 +62,20 @@ class YinYangTTFS(YinYangMixin, TwoLayerTTFS):
             tau_syn=5e-3,
             w_dist=GaussianDistribution(w_mean=2, w_std=1),
         ),
-        output_parameters: LIFLayerParameters = LIFLayerParameters(
-            n_in=200,
-            n=3,
-            tau_mem=20e-3,
-            tau_syn=5e-3,
-            w_dist=GaussianDistribution(w_mean=0.4, w_std=0.4),
-        ),
         loss_parameters: TTFSCrossEntropyLossParameters = TTFSCrossEntropyLossParameters(
-            n=3
+            lif_parameters=LIFLayerParameters(
+                n_in=200,
+                n=3,
+                tau_mem=20e-3,
+                tau_syn=5e-3,
+                w_dist=GaussianDistribution(w_mean=0.4, w_std=0.4),
+            ),
         ),
         **kwargs,
     ):
         super().__init__(
             gd_parameters=gd_parameters,
             hidden_parameters=hidden_parameters,
-            output_parameters=output_parameters,
-            loss_parameters=loss_parameters,
-            **kwargs,
-        )
-
-
-class YinYangVMax(YinYangMixin, OneLayerVMax):
-    def __init__(
-        self,
-        gd_parameters: GradientDescentParameters = GradientDescentParameters(
-            minibatch_size=200, epochs=300, lr=1e-3, gradient_clip=None
-        ),
-        output_parameters: LIFLayerParameters = LIFLayerParameters(
-            n_in=5,
-            n=200,
-            tau_mem=20e-3,
-            tau_syn=5e-3,
-            w_dist=GaussianDistribution(w_mean=2, w_std=1),
-        ),
-        loss_parameters: VMaxCrossEntropyLossParameters = VMaxCrossEntropyLossParameters(
-            n=3, n_in=200, w_dist=GaussianDistribution(w_mean=0.5, w_std=0.5)
-        ),
-        **kwargs,
-    ):
-        super().__init__(
-            gd_parameters=gd_parameters,
-            output_parameters=output_parameters,
             loss_parameters=loss_parameters,
             **kwargs,
         )

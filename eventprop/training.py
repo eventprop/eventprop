@@ -185,53 +185,24 @@ class AbstractTraining(ABC):
         return self.valid()
 
 
-class AbstractOneLayer(AbstractTraining):
-    @abstractmethod
-    def __init__(
-        self,
-        output_layer_class: Layer,
-        output_parameters: NamedTuple,
-        *args,
-        **kwargs,
-    ):
-        super().__init__(*args, **kwargs)
-        self.output_parameters = output_parameters
-        self.output_layer = output_layer_class(self.output_parameters)
-
-    def forward(self, minibatch: SpikeDataset):
-        self.loss(self.output_layer(minibatch.spikes))
-
-    def backward(self, minibatch: SpikeDataset):
-        self.loss.backward(minibatch.labels)
-
-    def get_weight_copy(self) -> Tuple:
-        return self.output_layer.w_in.copy()
-
-
 class AbstractTwoLayer(AbstractTraining):
     @abstractmethod
     def __init__(
         self,
         hidden_layer_class: Layer,
-        output_layer_class: Layer,
         hidden_parameters: NamedTuple,
-        output_parameters: NamedTuple,
         *args,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
         self.hidden_parameters = hidden_parameters
-        self.output_parameters = output_parameters
-        self.hidden_layer_class = hidden_layer_class
-        self.output_layer_class = output_layer_class
-        self.hidden_layer = self.hidden_layer_class(self.hidden_parameters)
-        self.output_layer = self.output_layer_class(self.output_parameters)
+        self.hidden_layer = hidden_layer_class(self.hidden_parameters)
 
     def forward(self, minibatch: SpikeDataset):
-        self.loss(self.output_layer(self.hidden_layer(minibatch.spikes)))
+        self.loss(self.hidden_layer(minibatch.spikes))
 
     def backward(self, minibatch: SpikeDataset):
         self.loss.backward(minibatch.labels)
 
     def get_weight_copy(self) -> Tuple:
-        return (self.hidden_layer.w_in.copy(), self.output_layer.w_in.copy())
+        return (self.hidden_layer.w_in.copy(), self.loss.w_in.copy())

@@ -16,20 +16,20 @@ from eventprop.yinyang import YinYangTTFS, dir_path
 def do_single_run_ttfs(seed, save_to):
     np.random.seed(seed)
     yin = YinYangTTFS(
-        gd_parameters=GradientDescentParameters(
-            lr=5e-3, epochs=100, minibatch_size=16
-        ),
+        gd_parameters=GradientDescentParameters(lr=5e-3, epochs=100, minibatch_size=16),
         loss_parameters=TTFSCrossEntropyLossParameters(
-            n=3, alpha=0.003, tau0=0.0005, tau1=0.0064
-        ),
-        output_parameters=LIFLayerParameters(
-            n=3,
-            n_in=200,
-            tau_mem=20e-3,
-            tau_syn=5e-3,
-            v_th=1,
-            v_leak=0,
-            w_dist=GaussianDistribution(seed, 0.93, 0.1),
+            alpha=0.003,
+            tau0=0.0005,
+            tau1=0.0064,
+            lif_parameters=LIFLayerParameters(
+                n=3,
+                n_in=200,
+                tau_mem=20e-3,
+                tau_syn=5e-3,
+                v_th=1,
+                v_leak=0,
+                w_dist=GaussianDistribution(seed, 0.93, 0.1),
+            ),
         ),
         hidden_parameters=LIFLayerParameters(
             n=200,

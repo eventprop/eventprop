@@ -17,7 +17,7 @@ from eventprop.training import GradientDescentParameters
 
 def do_single_run_vmax(seed, save_to):
     np.random.seed(seed)
-    mnist = OneLayerMNISTVMax(
+    mnist = TwoLayerMNISTVMax(
         gd_parameters=GradientDescentParameters(
             minibatch_size=5,
             epochs=100,
@@ -32,7 +32,7 @@ def do_single_run_vmax(seed, save_to):
             tau_syn=5e-3,
             w_dist=GaussianDistribution(seed, 0.2, 0.37),
         ),
-        output_parameters=LIFLayerParameters(
+        hidden_parameters=LIFLayerParameters(
             n=350,
             n_in=784,
             tau_mem=20e-3,
@@ -71,8 +71,8 @@ if __name__ == "__main__":
         all_test_errors.append(errors)
         all_test_losses.append(losses)
         if idx == 0:
-            mnist = OneLayerMNISTVMax()
-            mnist.output_layer.w_in = weights[0][0]
+            mnist = TwoLayerMNISTVMax()
+            mnist.hidden_layer.w_in = weights[0][0]
             mnist.loss.w_in = weights[0][1]
             mnist.forward(mnist.test_batch)
             predictions = mnist.loss.get_predictions()
