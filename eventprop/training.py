@@ -36,15 +36,18 @@ class AbstractTraining(ABC):
 
     def _training_data(self) -> Iterator[SpikeDataset]:
         logging.debug("Shuffling training data.")
+
         if self.gd_parameters.input_dropout != 0:
             train_batch = SpikeDataset(
                 dropout_spikes_cpp(
-                    train_batch.spikes,
+                    self.train_batch.spikes,
                     self.gd_parameters.input_dropout,
                     np.random.get_state(legacy=True)[1][0],
                 ),
-                train_batch.labels,
+                self.train_batch.labels,
             )
+        else:
+            train_batch = self.train_batch
         train_batch.shuffle()
         if self.gd_parameters.minibatch_size is None:
             yield train_batch
