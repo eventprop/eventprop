@@ -1,7 +1,6 @@
 from __future__ import annotations
 import numpy as np
-from typing import List, NamedTuple, Union, Tuple
-from enum import Enum, auto
+from typing import Union, Tuple
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 

@@ -1,9 +1,7 @@
-from eventprop.loss_layer import VMaxCrossEntropyLossParameters
-from eventprop.vmax_training import TwoLayerVMax
 import numpy as np
 import os
 
-from eventprop.layer import GaussianDistribution, SpikeDataset, DiagonalWeights
+from eventprop.layer import GaussianDistribution, SpikeDataset
 from eventprop.eventprop_cpp import Spikes, SpikesVector
 from eventprop.lif_layer import LIFLayerParameters
 from eventprop.ttfs_training import TwoLayerTTFS, TTFSCrossEntropyLossParameters

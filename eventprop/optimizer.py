@@ -1,11 +1,8 @@
 import numpy as np
 from abc import ABC, abstractmethod
 from typing import NamedTuple
-import logging
 
 from .layer import Layer
-from .li_layer import LILayer
-from .lif_layer import LIFLayer
 
 
 class Optimizer(ABC):

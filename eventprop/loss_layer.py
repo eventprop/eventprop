@@ -1,4 +1,4 @@
-from typing import NamedTuple, List
+from typing import NamedTuple
 import numpy as np
 
 from .li_layer import LILayer, LILayerParameters

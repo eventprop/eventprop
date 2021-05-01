@@ -1,7 +1,5 @@
 import numpy as np
-from scipy.optimize import brentq
-import logging
-from typing import List, NamedTuple, Tuple
+from typing import NamedTuple, Tuple
 
 from .layer import GaussianDistribution, Layer, WeightDistribution
 from .eventprop_cpp import (
@@ -12,7 +10,6 @@ from .eventprop_cpp import (
     compute_lambda_i_cpp,
     compute_lambda_i_trace_cpp,
 )
-from . import eventprop_cpp
 
 
 # fmt: off

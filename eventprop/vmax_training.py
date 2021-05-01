@@ -1,6 +1,3 @@
-from typing import Tuple
-
-from .layer import Layer
 from .training import AbstractTwoLayer
 from .lif_layer import LIFLayer, LIFLayerParameters
 from .loss_layer import VMaxCrossEntropyLoss, VMaxCrossEntropyLossParameters

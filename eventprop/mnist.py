@@ -5,7 +5,6 @@ import os
 from tqdm import tqdm
 import numpy as np
 import logging
-import struct
 
 from eventprop.vmax_training import (
     TwoLayerVMax,
