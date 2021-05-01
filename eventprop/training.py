@@ -36,17 +36,6 @@ class AbstractTraining(ABC):
 
     def _training_data(self) -> Iterator[SpikeDataset]:
         logging.debug("Shuffling training data.")
-        if self.gd_parameters.sigma_jitter == 0:
-            train_batch = self.train_batch
-        else:
-            train_batch = SpikeDataset(
-                jitter_spikes_cpp(
-                    self.train_batch.spikes,
-                    self.gd_parameters.sigma_jitter,
-                    np.random.get_state(legacy=True)[1][0],
-                ),
-                self.train_batch.labels,
-            )
         if self.gd_parameters.input_dropout != 0:
             train_batch = SpikeDataset(
                 dropout_spikes_cpp(

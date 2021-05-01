@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import seaborn as sn
 from os.path import join, exists
 
-from eventprop.mnist import OneLayerMNISTVMax
+from eventprop.mnist import TwoLayerMNISTVMax
 from eventprop.training import GradientDescentParameters
 
 def do_single_run_vmax(seed, save_to):
@@ -22,7 +22,6 @@ def do_single_run_vmax(seed, save_to):
             minibatch_size=5,
             epochs=100,
             lr=1e-3,
-            sigma_jitter=0e-3,
             input_dropout=0.2,
         ),
         loss_parameters=VMaxCrossEntropyLossParameters(

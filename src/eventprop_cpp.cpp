@@ -549,39 +549,6 @@ backward_maxima_batch(std::vector<Spikes> &input_batch, std::vector<Maxima> cons
   }
 }
 
-std::vector<Spikes> jitter_spikes(std::vector<Spikes> const& spikes, double sigma_jitter, unsigned int random_seed) {
-  std::vector<Spikes> jittered_spikes;
-  std::mt19937 gen{random_seed};
-  std::normal_distribution<> dist{0, sigma_jitter};
-  for (auto const& elem: spikes) {
-    jittered_spikes.push_back(elem);
-    Eigen::Ref<Eigen::ArrayXd> new_times = jittered_spikes.back().times;
-    Eigen::Ref<Eigen::ArrayXi> new_sources = jittered_spikes.back().sources;
-    for (int i=0; i<elem.n_spikes; i++) {
-      new_times[i] += dist(gen);
-    }
-    bool sorted = false;
-    while (not sorted) {
-      for (int i=0; i<elem.n_spikes-1; i++) {
-        if (new_times[i+1] < new_times[i]) {
-          double tmp_time = new_times[i+1];
-          new_times[i+1] = new_times[i];
-          new_times[i] = tmp_time;
-          int tmp_src = new_sources[i+1];
-          new_sources[i+1] = new_sources[i];
-          new_sources[i] = tmp_src;
-          break;
-        }
-        if (i == elem.n_spikes-2) {
-          sorted = true;
-        }
-      }
-    }
-  }
-  return jittered_spikes;
-}
-
-
 std::vector<Spikes> dropout_spikes(std::vector<Spikes> const& spikes, double p_drop, unsigned int random_seed) {
   std::vector<Spikes> dropped_spikes;
   std::mt19937 gen{random_seed};
@@ -667,6 +634,5 @@ PYBIND11_MODULE(eventprop_cpp, m) {
   .def("compute_voltage_trace_cpp", &compute_voltage_trace, "t_max"_a, "dt"_a, "target_nrn_idx"_a, "w"_a.noconvert(), "spikes"_a, "v_th"_a, "tau_mem"_a, "tau_syn"_a)
   .def("compute_lambda_i_cpp", &compute_lambda_i, "t"_a, "target_nrn_idx"_a, "post_spikes"_a, "v_th"_a, "tau_mem"_a, "tau_syn"_a)
   .def("compute_lambda_i_trace_cpp", &compute_lambda_i_trace, "t_max"_a, "dt"_a, "target_nrn_idx"_a, "post_spikes"_a, "v_th"_a, "tau_mem"_a, "tau_syn"_a)
-  .def("jitter_spikes_cpp", &jitter_spikes, "spikes"_a.noconvert(), "sigma_jitter"_a, "random_seed"_a)
   .def("dropout_spikes_cpp", &dropout_spikes, "spikes"_a.noconvert(), "p_drop"_a, "random_seed"_a);
 };
