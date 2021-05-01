@@ -62,18 +62,21 @@ class TTFSCrossEntropyLoss(Layer):
 
     def get_accuracy(self, labels: np.ndarray):
         t_labels = self.first_spike_times[self._batch_idxs, labels]
-        return np.mean(
-            np.logical_and(
-                ~np.isnan(t_labels),
-                np.all(
-                    np.logical_or(
-                        self.first_spike_times >= t_labels[:, None],
-                        np.isnan(self.first_spike_times),
-                    ),
-                    axis=1,
-                ),
-            )
-        )
+        results = list()
+        for batch_idx in self._batch_idxs:
+            # check if label spike exists
+            if np.isnan(t_labels[batch_idx]):
+                results.append(0)
+                continue
+            # check if all other spikes come later
+            nan_mask = ~np.isnan(self.first_spike_times[batch_idx])
+            if np.all(
+                self.first_spike_times[batch_idx][nan_mask] >= t_labels[batch_idx]
+            ):
+                results.append(1)
+            else:
+                results.append(0)
+        return np.mean(results)
 
     def backward(self, labels: np.ndarray):
         if not self._ran_forward:
@@ -84,6 +87,8 @@ class TTFSCrossEntropyLoss(Layer):
             self.parameters.alpha,
         )
         sum0 = np.nansum(np.exp(-self.first_spike_times / tau0), axis=1)
+        # set sum to inf if no spikes at all
+        sum0[sum0 == 0] = np.inf
         n_batch = len(self.input_batch)
         # compute error for label neuron first
         t_labels = self.first_spike_times[self._batch_idxs, labels]
