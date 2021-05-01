@@ -7,7 +7,7 @@ import pickle
 
 from .optimizer import GradientDescentParameters, Optimizer, Adam
 from .layer import Layer, SpikeDataset
-from .eventprop_cpp import jitter_spikes_cpp, dropout_spikes_cpp
+from .eventprop_cpp import dropout_spikes_cpp
 
 
 class AbstractTraining(ABC):
