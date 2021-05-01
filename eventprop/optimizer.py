@@ -49,9 +49,10 @@ class GradientDescent(Optimizer):
         self.parameters = parameters
 
     def step(self):
-        ancestor_layer = self.loss.ancestor_layer
+        ancestor_layer = self.loss
         while ancestor_layer is not None:
-            if not isinstance(ancestor_layer, LIFLayer):
+            if not hasattr(ancestor_layer.gradient):
+                ancestor_layer = ancestor_layer.ancestor_layer
                 continue
             ancestor_layer.w_in += -self.parameters.lr * ancestor_layer.gradient
             ancestor_layer = ancestor_layer.ancestor_layer
