@@ -40,8 +40,6 @@ def do_single_run_vmax(seed, save_to):
             tau_syn=5e-3,
             w_dist=GaussianDistribution(seed, 0.065 * 1.2, 0.045 * 1),
         ),
-        weight_increase_threshold_output=1.0,
-        weight_increase_bump=6.9e-5,
         lr_decay_gamma=0.95,
         lr_decay_step=1,
     )
