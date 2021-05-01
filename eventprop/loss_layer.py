@@ -63,16 +63,15 @@ class TTFSCrossEntropyLoss(Layer):
     def get_accuracy(self, labels: np.ndarray):
         t_labels = self.first_spike_times[self._batch_idxs, labels]
         results = list()
+        nan_masks = ~np.isnan(self.first_spike_times)
         for batch_idx in self._batch_idxs:
             # check if label spike exists
             if np.isnan(t_labels[batch_idx]):
                 results.append(0)
                 continue
             # check if all other spikes come later
-            nan_mask = ~np.isnan(self.first_spike_times[batch_idx])
-            if np.all(
-                self.first_spike_times[batch_idx][nan_mask] >= t_labels[batch_idx]
-            ):
+            mask = nan_masks[batch_idx]
+            if np.all(self.first_spike_times[batch_idx][mask] >= t_labels[batch_idx]):
                 results.append(1)
             else:
                 results.append(0)

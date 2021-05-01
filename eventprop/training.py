@@ -17,12 +17,10 @@ class AbstractTraining(ABC):
         loss_class: Layer,
         loss_parameters: NamedTuple,
         gd_parameters: GradientDescentParameters = GradientDescentParameters(),
-        weight_increase_bump: float = 0,
         lr_decay_gamma: float = 0.95,
         lr_decay_step: int = 2000,
         optimizer_class: Optimizer = Adam,
     ):
-        self.weight_increase_bump = weight_increase_bump
         self.lr_decay_gamma = lr_decay_gamma
         self.lr_decay_step = lr_decay_step
         self.loss_class = loss_class
@@ -125,10 +123,6 @@ class AbstractTraining(ABC):
         pass
 
     @abstractmethod
-    def process_dead_neurons(self):
-        pass
-
-    @abstractmethod
     def get_weight_copy(self) -> Tuple:
         pass
 
@@ -157,14 +151,13 @@ class AbstractTraining(ABC):
                 )
             minibatch_losses = list()
             minibatch_accuracies = list()
-            for mb_idx, minibatch in enumerate(self._training_data()):
+            for minibatch in self._training_data():
                 self.forward_and_backward(minibatch)
                 if train_results_every_epoch:
                     batch_loss = np.nanmean(self.loss.get_losses(minibatch.labels))
                     batch_accuracy = self.loss.get_accuracy(minibatch.labels)
                     minibatch_losses.append(batch_loss)
                     minibatch_accuracies.append(batch_accuracy)
-                self.process_dead_neurons()
                 self.optimizer.step()
                 self.optimizer.zero_grad()
             if self.lr_decay_step is not None and epoch > 0:
@@ -199,11 +192,9 @@ class AbstractOneLayer(AbstractTraining):
         output_layer_class: Layer,
         output_parameters: NamedTuple,
         *args,
-        weight_increase_threshold_output: float = 0.0,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
-        self.weight_increase_threshold_output = weight_increase_threshold_output
         self.output_parameters = output_parameters
         self.output_layer = output_layer_class(self.output_parameters)
 
@@ -212,13 +203,6 @@ class AbstractOneLayer(AbstractTraining):
 
     def backward(self, minibatch: SpikeDataset):
         self.loss.backward(minibatch.labels)
-
-    def process_dead_neurons(self):
-        frac_quiet_output = self.output_layer.dead_fraction
-        logging.debug(f"Fraction of quiet output neurons: {frac_quiet_output}")
-        if frac_quiet_output > self.weight_increase_threshold_output:
-            logging.debug("Bumping output weights.")
-            self.output_layer.w_in += self.weight_increase_bump
 
     def get_weight_copy(self) -> Tuple:
         return self.output_layer.w_in.copy()
@@ -233,13 +217,9 @@ class AbstractTwoLayer(AbstractTraining):
         hidden_parameters: NamedTuple,
         output_parameters: NamedTuple,
         *args,
-        weight_increase_threshold_hidden: float = 1.0,
-        weight_increase_threshold_output: float = 1.0,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
-        self.weight_increase_threshold_hidden = weight_increase_threshold_hidden
-        self.weight_increase_threshold_output = weight_increase_threshold_output
         self.hidden_parameters = hidden_parameters
         self.output_parameters = output_parameters
         self.hidden_layer_class = hidden_layer_class
@@ -252,19 +232,6 @@ class AbstractTwoLayer(AbstractTraining):
 
     def backward(self, minibatch: SpikeDataset):
         self.loss.backward(minibatch.labels)
-
-    def process_dead_neurons(self):
-        frac_quiet_output = self.output_layer.dead_fraction
-        frac_quiet_hidden = self.hidden_layer.dead_fraction
-        logging.debug(f"Fraction of quiet hidden neurons: {frac_quiet_hidden}")
-        logging.debug(f"Fraction of quiet output neurons: {frac_quiet_output}")
-        if frac_quiet_hidden > self.weight_increase_threshold_hidden:
-            logging.debug("Bumping hidden weights.")
-            self.hidden_layer.w_in += self.weight_increase_bump
-        else:
-            if frac_quiet_output > self.weight_increase_threshold_output:
-                logging.debug("Bumping output weights.")
-                self.output_layer.w_in += self.weight_increase_bump
 
     def get_weight_copy(self) -> Tuple:
         return (self.hidden_layer.w_in.copy(), self.output_layer.w_in.copy())
