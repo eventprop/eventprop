@@ -4,12 +4,6 @@
 [submodule "src/eigen"]
 	path = src/eigen
 	url = https://gitlab.com/libeigen/eigen.git
-[submodule "src/boost_format"]
-	path = src/boost_format
-	url = https://github.com/boostorg/format.git
-[submodule "src/boost_math"]
-	path = src/boost_math
-	url = https://github.com/boostorg/math.git
 [submodule "eventprop/yin_yang_data_set"]
 	path = eventprop/yin_yang_data_set
 	url = https://github.com/lkriener/yin_yang_data_set.git
