@@ -3,12 +3,7 @@ import setuptools
 cpp_ext = setuptools.Extension(
     name="eventprop.eventprop_cpp",
     sources=["src/eventprop_cpp.cpp"],
-    include_dirs=[
-        "src/pybind11/include",
-        "src/eigen",
-        "src/boost_format/include",
-        "src/boost_math/include",
-    ],
+    include_dirs=["src/pybind11/include", "src/eigen"],
     language="c++",
     # extra_compile_args=["-std=c++17", "-O0", "-g"]
     extra_compile_args=[
