@@ -21,7 +21,7 @@ def do_single_run_vmax(seed, save_to):
         gd_parameters=GradientDescentParameters(
             minibatch_size=5,
             epochs=100,
-            lr=1e-3,
+            lr=5e-3,
             input_dropout=0.2,
         ),
         loss_parameters=VMaxCrossEntropyLossParameters(
@@ -56,9 +56,10 @@ if __name__ == "__main__":
     seeds = 10
     results = list()
 
-    for seed in range(seeds):
+    for seed in [4]:
         fname = f"mnist_vmax_{seed}.pkl"
-        do_single_run_vmax(seed, fname)
+        if not exists(fname):
+            do_single_run_vmax(seed, fname)
 
     all_test_losses = list()
     all_test_errors = list()
