@@ -170,7 +170,7 @@ compute_spikes(Eigen::Ref<RowMatrixXd const> w, Spikes const &spikes,
   auto bracket_spike = [&](double a, double b, int target_nrn_idx,
                            int t_pre_idx) {
     boost::math::tools::eps_tolerance<double> t(
-        std::numeric_limits<double>::digits - 1);
+        std::numeric_limits<double>::digits );
     boost::uintmax_t max_iter = boost::math::policies::get_max_root_iterations<
         boost::math::policies::policy<>>();
     std::pair<double, double> result = boost::math::tools::toms748_solve(
