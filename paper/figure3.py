@@ -56,7 +56,7 @@ if __name__ == "__main__":
     seeds = 10
     results = list()
 
-    for seed in [4]:
+    for seed in range(seeds):
         fname = f"mnist_vmax_{seed}.pkl"
         if not exists(fname):
             do_single_run_vmax(seed, fname)
