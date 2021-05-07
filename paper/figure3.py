@@ -110,7 +110,7 @@ if __name__ == "__main__":
                     )
                     lines = plt.plot(
                         ts, vs, label=f"{class_idx}"
-                    )  # , ls=ls, alpha=alpha)
+                    , ls=ls, alpha=alpha)
                 plt.yticks([])
                 plt.xlabel("$t$ [s]")
                 plt.ylabel("V")
