@@ -4,7 +4,6 @@ from eventprop.loss_layer import TTFSCrossEntropyLossParameters
 from eventprop.optimizer import GradientDescentParameters
 import logging
 from time import sleep
-from dask.distributed import Client, LocalCluster
 import pickle
 import numpy as np
 import matplotlib.pyplot as plt
@@ -54,14 +53,12 @@ def do_single_run_ttfs(seed, save_to):
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    cluster = LocalCluster(n_workers=10, threads_per_worker=1)
-    client = Client(cluster)
     seeds = 10
     results = list()
     for seed in range(seeds):
-        fname = join(dir_path, f"yinyang_{seed}.pkl")
+        fname = f"yinyang_{seed}.pkl"
         if not exists(fname):
-            results.append(client.submit(do_single_run_ttfs, seed, fname))
+            do_single_run_ttfs(seed, fname)
     while not all([x.done() for x in results]):
         sleep(0.1)
 
@@ -75,7 +72,7 @@ if __name__ == "__main__":
     normalized_times_2 = list()
     for idx in range(10):
         _, _, accs, losses, first_spikes, _, _, _, _ = pickle.load(
-            open(join(dir_path, f"yinyang_{idx}.pkl"), "rb")
+            open(f"yinyang_{idx}.pkl", "rb")
         )
         errors = 1 - np.array(accs)
         all_test_errors.append(errors)
@@ -146,21 +143,23 @@ if __name__ == "__main__":
 
     plt.figure(figsize=(4, 3))
     for errors in all_test_errors:
-        plt.plot(errors, "k-", alpha=0.1)
-    plt.plot(np.mean(all_test_errors, axis=0))
+        plt.plot(np.arange(1, len(all_test_errors[-1])+1), errors, "k-", alpha=0.1)
+    plt.plot(np.arange(1, len(all_test_errors[-1])+1), np.mean(all_test_errors, axis=0))
     plt.ylim(0.01, 1)
     plt.yscale("log")
+    plt.xscale("log")
     plt.xlabel("Epoch")
     plt.ylabel("Test Error")
     plt.savefig("yinyang_errors.pdf")
 
     plt.figure(figsize=(4, 3))
     for losses in all_test_losses:
-        plt.plot(losses, "k-", alpha=0.1)
-    plt.plot(np.mean(all_test_losses, axis=0))
+        plt.plot(np.arange(1, len(all_test_losses[-1])+1), losses, "k-", alpha=0.1)
+    plt.plot(np.arange(1, len(all_test_losses[-1])+1), np.mean(all_test_losses, axis=0))
     plt.ylim(0.1, 2)
     plt.yticks([0.1, 1])
     plt.yscale("log")
+    plt.xscale("log")
     plt.xlabel("Epoch")
     plt.ylabel("Test Loss")
     plt.savefig("yinyang_loss.pdf")

@@ -87,6 +87,8 @@ if __name__ == "__main__":
                 square=True,
                 annot_kws={"size": 6},
                 cmap="inferno",
+                vmin=0,
+                vmax=1,
                 cbar_kws={"label": "Fraction of Test Samples"},
                 fmt=".2f",
             )
@@ -127,24 +129,26 @@ if __name__ == "__main__":
 
     plt.figure(figsize=(4, 3))
     for errors in all_test_errors:
-        plt.plot(errors, "k-", alpha=0.1)
-    plt.plot(np.mean(all_test_errors, axis=0))
+        plt.plot(np.arange(1, len(all_test_errors[0])+1), errors, "k-", alpha=0.1)
+    plt.plot(np.arange(1, len(all_test_errors[0])+1), np.mean(all_test_errors, axis=0))
     min_idx = np.argmin(np.mean(all_test_errors, axis=0))
     min_err = np.mean(all_test_errors, axis=0)[min_idx]
     print(f"Maximum accuracy in epoch {min_idx}: {1-min_err}")
     plt.ylim(0.01, 1)
     plt.yscale("log")
+    plt.xscale("log")
     plt.xlabel("Epoch")
     plt.ylabel("Test Error")
     plt.savefig("mnist_errors.pdf")
 
     plt.figure(figsize=(4, 3))
     for losses in all_test_losses:
-        plt.plot(losses, "k-", alpha=0.1)
-    plt.plot(np.mean(all_test_losses, axis=0))
-    plt.ylim(0.1, 2)
+        plt.plot(np.arange(1, len(all_test_losses[0])+1), losses, "k-", alpha=0.1)
+    plt.plot(np.arange(1, len(all_test_losses[0])+1), np.mean(all_test_losses, axis=0))
+    plt.ylim(0.05, 4)
     plt.yticks([0.1, 1])
     plt.yscale("log")
+    plt.xscale("log")
     plt.xlabel("Epoch")
     plt.ylabel("Test Loss")
     plt.savefig("mnist_loss.pdf")

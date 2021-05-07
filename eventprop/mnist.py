@@ -94,11 +94,6 @@ class MNISTMixin:
         test_images, test_labels = process_file(
             test_path_images_raw, test_path_labels_raw, 10000
         )
-        test_shuffle_idxs = np.arange(10000)
-        tmp_rng = np.random.default_rng(0)
-        tmp_rng.shuffle(test_shuffle_idxs)
-        test_images = test_images[test_shuffle_idxs]
-        test_labels = test_labels[test_shuffle_idxs]
 
         def get_batch(samples, labels):
             spikes = list()
@@ -119,14 +114,14 @@ class MNISTMixin:
             return SpikeDataset(SpikesVector(spikes), labels)
 
         logging.debug("Creating train set spikes...")
-        train_batch = get_batch(train_images, train_labels)
+        train_batch = get_batch(train_images[self.valid_num:], train_labels[self.valid_num: ])
         logging.debug("Creating valid set spikes...")
         valid_batch = get_batch(
-            test_images[: self.valid_num], test_labels[: self.valid_num]
+            train_images[:self.valid_num], train_labels[:self.valid_num]
         )
         logging.debug("Creating test set spikes...")
         test_batch = get_batch(
-            test_images[self.valid_num :], test_labels[self.valid_num :]
+            test_images, test_labels
         )
         with open(train_path, "wb") as f:
             pickle.dump(train_batch, f)
