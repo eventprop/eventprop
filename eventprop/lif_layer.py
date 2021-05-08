@@ -116,12 +116,3 @@ class LIFLayer(Layer):
             self.parameters.tau_mem,
             self.parameters.tau_syn,
         )
-
-    def _i(self, t: float, target_nrn_idx: int) -> float:
-        idxs = np.argwhere(self.input_spikes.times <= t)
-        if len(idxs) == 0:
-            return 0
-        else:
-            t_pre_idx = idxs[-1, 0] + 1
-        i = np.exp(-t / self.parameters.tau_syn) * self.sum0[t_pre_idx, target_nrn_idx]
-        return i
