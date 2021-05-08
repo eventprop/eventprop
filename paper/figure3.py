@@ -133,7 +133,6 @@ if __name__ == "__main__":
     plt.plot(np.arange(1, len(all_test_errors[0])+1), np.mean(all_test_errors, axis=0))
     min_idx = np.argmin(np.mean(all_test_errors, axis=0))
     min_err = np.mean(all_test_errors, axis=0)[min_idx]
-    print(f"Maximum accuracy in epoch {min_idx}: {1-min_err}")
     plt.ylim(0.01, 1)
     plt.yscale("log")
     plt.xscale("log")
