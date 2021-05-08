@@ -36,7 +36,7 @@ def do_single_run_vmax(seed, save_to):
             n_in=784,
             tau_mem=20e-3,
             tau_syn=5e-3,
-            w_dist=GaussianDistribution(seed, 0.065 * 1.2, 0.045 * 1),
+            w_dist=GaussianDistribution(seed, 0.078, 0.045),
         ),
         lr_decay_gamma=0.95,
         lr_decay_step=1,
