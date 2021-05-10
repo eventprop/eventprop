@@ -62,8 +62,42 @@ if __name__ == "__main__":
     while not all([x.done() for x in results]):
         sleep(0.1)
 
+    train_labels = np.load(join(dir_path, "train_labels.npy"))
+    train_samples = np.load(join(dir_path, "train_samples.npy"))
+
     test_labels = np.load(join(dir_path, "test_labels.npy"))
     test_samples = np.load(join(dir_path, "test_samples.npy"))
+
+    plt.figure()
+    plt.scatter(
+        [x[0] for x, l in zip(train_samples, train_labels) if l == 0],
+        [x[1] for x, l in zip(train_samples, train_labels) if l == 0],
+        c="red",
+        marker="o",
+        edgecolors="black",
+        alpha=0.6,
+    )
+    plt.scatter(
+        [x[0] for x, l in zip(train_samples, train_labels) if l == 1],
+        [x[1] for x, l in zip(train_samples, train_labels) if l == 1],
+        c="blue",
+        marker="o",
+        edgecolors="black",
+        alpha=0.6,
+    )
+    plt.scatter(
+        [x[0] for x, l in zip(train_samples, train_labels) if l == 1],
+        [x[1] for x, l in zip(train_samples, train_labels) if l == 1],
+        c="green",
+        marker="o",
+        edgecolors="black",
+        alpha=0.6,
+    )
+    plt.xlabel("x")
+    plt.ylabel("y")
+    plt.xticks([0, 1])
+    plt.yticks([0, 1])
+    plt.savefig("yinyang_training_data.pdf")
 
     all_test_losses = list()
     all_test_errors = list()
