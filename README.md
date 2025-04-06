@@ -1,5 +1,6 @@
 # EventProp
-A simple event-based simulator that implements the EventProp algorithm for backpropagation in spiking neural networks.
+An event-based, modular simulator that implements the EventProp algorithm for backpropagation in spiking neural networks.
+Supports the Adam optimizer and cross-entropy loss functions based on spike times and voltage values.
 
 ## Installation
 Requires Python >= 3.8 and Boost.
