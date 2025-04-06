@@ -5,7 +5,7 @@ Supports the Adam optimizer and cross-entropy loss functions based on spike time
 ## Installation
 Requires Python >= 3.8 and Boost.
 ```python
-pip install -U git+git://github.com/neurognosis/eventprop
+pip install -U git+git://github.com/timowunderlich/eventprop
 ```
 
 ## Quickstart
